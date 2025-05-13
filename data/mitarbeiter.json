@@ -1,0 +1,275 @@
+[
+  {
+    "id": "1746543916080",
+    "vorname": "Artur",
+    "nachname": "Donis",
+    "stunden": 40,
+    "ressort": "KI",
+    "cvd": false,
+    "notizen": "Hallo Welt!"
+  },
+  {
+    "id": "1746611378036",
+    "vorname": "Florian",
+    "nachname": "Forth",
+    "stunden": 40,
+    "ressort": "KI",
+    "cvd": true,
+    "notizen": "KI Leitung"
+  },
+  {
+    "id": "1746620642779",
+    "vorname": "Max",
+    "nachname": "Mustermann",
+    "stunden": 20,
+    "ressort": "Test",
+    "cvd": true,
+    "notizen": "Ich bin ein Test"
+  },
+  {
+    "id": "1746628546459",
+    "vorname": "Emma",
+    "nachname": "Müller",
+    "stunden": 30,
+    "ressort": "Technik",
+    "cvd": true,
+    "notizen": "Teilzeit"
+  },
+  {
+    "id": "1746628546460",
+    "vorname": "Leon",
+    "nachname": "Schmidt",
+    "stunden": 20,
+    "ressort": "Politik",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546461",
+    "vorname": "Sophie",
+    "nachname": "Meier",
+    "stunden": 30,
+    "ressort": "Technik",
+    "cvd": true,
+    "notizen": "nur Frühschicht"
+  },
+  {
+    "id": "1746628546462",
+    "vorname": "David",
+    "nachname": "Becker",
+    "stunden": 20,
+    "ressort": "Sport",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546463",
+    "vorname": "Hannah",
+    "nachname": "Wagner",
+    "stunden": 30,
+    "ressort": "Sport",
+    "cvd": true,
+    "notizen": "Urlaub 15.–18.05."
+  },
+  {
+    "id": "1746628546464",
+    "vorname": "Moritz",
+    "nachname": "Weber",
+    "stunden": 40,
+    "ressort": "Technik",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546465",
+    "vorname": "Clara",
+    "nachname": "Fischer",
+    "stunden": 20,
+    "ressort": "KI",
+    "cvd": true,
+    "notizen": ""
+  },
+  {
+    "id": "1746628546466",
+    "vorname": "Philipp",
+    "nachname": "Schulz",
+    "stunden": 30,
+    "ressort": "Sport",
+    "cvd": true,
+    "notizen": "nur Frühschicht"
+  },
+  {
+    "id": "1746628546467",
+    "vorname": "Emily",
+    "nachname": "Hoffmann",
+    "stunden": 20,
+    "ressort": "KI",
+    "cvd": true,
+    "notizen": "Teilzeit"
+  },
+  {
+    "id": "1746628546468",
+    "vorname": "Niklas",
+    "nachname": "Krüger",
+    "stunden": 30,
+    "ressort": "Panorama",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546469",
+    "vorname": "Mia",
+    "nachname": "Hartmann",
+    "stunden": 30,
+    "ressort": "Politik",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546470",
+    "vorname": "Noah",
+    "nachname": "Jung",
+    "stunden": 40,
+    "ressort": "Sport",
+    "cvd": false,
+    "notizen": "nur Frühschicht"
+  },
+  {
+    "id": "1746628546471",
+    "vorname": "Lea",
+    "nachname": "Klein",
+    "stunden": 30,
+    "ressort": "Wissenschaft",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546472",
+    "vorname": "Felix",
+    "nachname": "Wolf",
+    "stunden": 40,
+    "ressort": "Politik",
+    "cvd": true,
+    "notizen": "Teilzeit"
+  },
+  {
+    "id": "1746628546473",
+    "vorname": "Lara",
+    "nachname": "Schröder",
+    "stunden": 30,
+    "ressort": "Wissenschaft",
+    "cvd": false,
+    "notizen": "Urlaub 15.–18.05."
+  },
+  {
+    "id": "1746628546474",
+    "vorname": "Tobias",
+    "nachname": "Neumann",
+    "stunden": 30,
+    "ressort": "Kultur",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546475",
+    "vorname": "Johanna",
+    "nachname": "Schwarz",
+    "stunden": 40,
+    "ressort": "Politik",
+    "cvd": true,
+    "notizen": ""
+  },
+  {
+    "id": "1746628546476",
+    "vorname": "Simon",
+    "nachname": "Zimmermann",
+    "stunden": 20,
+    "ressort": "Kultur",
+    "cvd": false,
+    "notizen": "nicht montags"
+  },
+  {
+    "id": "1746628546477",
+    "vorname": "Nina",
+    "nachname": "Brandt",
+    "stunden": 40,
+    "ressort": "Technik",
+    "cvd": false,
+    "notizen": "Teilzeit"
+  },
+  {
+    "id": "1746628546478",
+    "vorname": "Luca",
+    "nachname": "Bauer",
+    "stunden": 20,
+    "ressort": "Wirtschaft",
+    "cvd": false,
+    "notizen": "Urlaub 15.–18.05."
+  },
+  {
+    "id": "1746628546479",
+    "vorname": "Vanessa",
+    "nachname": "Sommer",
+    "stunden": 40,
+    "ressort": "Wissenschaft",
+    "cvd": true,
+    "notizen": "nur Frühschicht"
+  },
+  {
+    "id": "1746628546480",
+    "vorname": "Julian",
+    "nachname": "Lang",
+    "stunden": 30,
+    "ressort": "Kultur",
+    "cvd": true,
+    "notizen": "Teilzeit"
+  },
+  {
+    "id": "1746628546481",
+    "vorname": "Lisa",
+    "nachname": "Peters",
+    "stunden": 20,
+    "ressort": "Politik",
+    "cvd": false,
+    "notizen": "Urlaub 15.–18.05."
+  },
+  {
+    "id": "1746628546482",
+    "vorname": "Paul",
+    "nachname": "Lindner",
+    "stunden": 40,
+    "ressort": "Sport",
+    "cvd": true,
+    "notizen": ""
+  },
+  {
+    "id": "1746628546483",
+    "vorname": "Jasmin",
+    "nachname": "Schuster",
+    "stunden": 20,
+    "ressort": "Kultur",
+    "cvd": true,
+    "notizen": "Urlaub 15.–18.05."
+  },
+  {
+    "id": "1746628546484",
+    "vorname": "Tom",
+    "nachname": "Keller",
+    "stunden": 40,
+    "ressort": "Wirtschaft",
+    "cvd": true,
+    "notizen": ""
+  },
+  {
+    "id": "1746628546485",
+    "vorname": "Laura",
+    "nachname": "Horn",
+    "stunden": 40,
+    "ressort": "Wirtschaft",
+    "cvd": true,
+    "notizen": ""
+  }
+]
+
+
+

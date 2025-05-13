@@ -1,0 +1,10 @@
+{
+  "max_hours_per_week": 40,
+  "min_hours_per_shift": 4,
+  "max_hours_per_day": 8,
+  "required_roles_per_day": {
+    "CvD": 1,
+    "Redaktion": 2
+  },
+  "shift_length_options": [4, 5, 6, 8]
+}

@@ -1,0 +1,51 @@
+<div class="page-wrapper">
+  <h1>Mitarbeiterkartei</h1>
+
+  <table class="mitarbeiter-tabelle">
+    <thead>
+      <tr>
+        <th>Vorname</th>
+        <th>Nachname</th>
+        <th>Stunden</th>
+        <th>Ressort</th>
+        <th>CvD</th>
+        <th>Notizen</th>
+        <th>Aktionen</th>
+      </tr>
+    </thead>
+    <tbody id="employee-list"></tbody>
+  </table>
+
+  <button class="add-btn" onclick="showAddForm()">➕ Neuer Mitarbeiter</button>
+</div>
+
+<!-- Bearbeiten / Hinzufügen Popup -->
+<div id="employee-popup" class="popup-overlay hidden">
+  <div class="popup">
+    <h2 id="popup-title">Mitarbeiter bearbeiten</h2>
+
+    <label for="input-vorname">Vorname</label>
+    <input type="text" id="input-vorname" placeholder="Vorname" />
+
+    <label for="input-nachname">Nachname</label>
+    <input type="text" id="input-nachname" placeholder="Nachname" />
+
+    <label for="input-stunden">Wochenstunden</label>
+    <input type="number" id="input-stunden" placeholder="Wochenstunden" />
+
+    <label for="input-ressort">Ressort</label>
+    <input type="text" id="input-ressort" placeholder="Ressort" />
+
+    <label><input type="checkbox" id="input-cvd" /> CvD</label>
+
+    <label for="input-notizen">Notizen</label>
+    <textarea id="input-notizen" placeholder="Notizen"></textarea>
+
+    <div class="popup-buttons">
+      <button class="save-btn" onclick="saveEmployee()">Speichern</button>
+      <button class="cancel-btn" onclick="closePopup()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/mitarbeiter.js"></script>

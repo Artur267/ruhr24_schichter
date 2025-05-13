@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title><%= typeof title !== 'undefined' ? title : 'Schichter Dashboard' %></title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">R24 Schichter (NAME TBD)</div>
+        <div class="links">
+            <a href="/">🏠</a>
+            <a href="/erstellen">Erstellen</a>
+            <a href="/schichtplan">Betrachten</a>
+            <a href="/bearbeiten">Bearbeiten</a>
+            <a href="/mitarbeiter">Mitarbeiter</a>
+            <a href="/limitationen">Regelwerk</a>
+        </div>
+    </div>
+
+    <div class="content">
+        <%- body %>
+    </div>
+</body>
+</html>

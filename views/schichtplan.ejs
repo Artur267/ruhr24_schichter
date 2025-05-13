@@ -1,0 +1,77 @@
+<div class="page-wrapper">
+    <h1>Mitarbeiter Kalender</h1>
+
+    <div class="filter-bereich">
+        <label for="ressortFilter">Ressort:</label>
+        <select id="ressortFilter">
+            <option value="">Alle Ressorts</option>
+        </select>
+
+        <label for="cvdFilter">CVD:</label>
+        <select id="cvdFilter">
+            <option value="">Alle</option>
+            <option value="true">Ja</option>
+            <option value="false">Nein</option>
+        </select>
+
+        <label for="mitarbeiterSuche">Mitarbeiter suchen:</label>
+        <input type="text" id="mitarbeiterSuche" placeholder="Nach Name oder ID suchen">
+    </div>
+
+    <table class="mitarbeiter-kalender" id="mitarbeiterKalender">
+        <thead>
+            <tr>
+                <th>NutzerID</th>
+                <th>Nachname</th>
+                <th>Vorname</th>
+                <th>Ressort</th>
+                <th>CVD</th>
+                <th class="notizen-spalte">Notizen</th>
+                <th>Wochenstunden</th>
+                <th>MonatsSumme</th>
+                <th>Delta</th>
+                <% if (dates && dates.length > 0) { %>
+                    <% dates.forEach(function(date) { %>
+                        <th colspan="2"><%= date %></th>
+                    <% }); %>
+                <% } %>
+            </tr>
+            <tr>
+                <th colspan="9"></th>
+                <% if (dates && dates.length > 0) { %>
+                    <% for (let i = 0; i < dates.length; i++) { %>
+                        <th>Von</th>
+                        <th>Bis</th>
+                    <% } %>
+                <% } %>
+                </tr>
+            </thead>
+            <tbody id="mitarbeiterKalenderTbody" data-mitarbeiter-daten="<%= JSON.stringify(mitarbeiterDaten) %>">
+                <% if (mitarbeiterDaten && mitarbeiterDaten.length > 0) { %>
+                    <% mitarbeiterDaten.forEach(function(mitarbeiter) { %>
+                        <tr>
+                            <td><%= mitarbeiter.NutzerID %></td>
+                            <td><%= mitarbeiter.Nachname %></td>
+                            <td><%= mitarbeiter.Vorname %></td>
+                            <td><%= mitarbeiter.Ressort %></td>
+                            <td><%= mitarbeiter.CVD %></td>
+                            <td class="notizen-spalte"><%= mitarbeiter.Notizen %></td>
+                            <td><%= mitarbeiter.Wochenstunden %></td>
+                            <td><%= mitarbeiter.MonatsSumme %></td>
+                            <td><%= mitarbeiter.Delta %></td>
+                            <% if (dates && dates.length > 0) { %>
+                                <% Object.keys(mitarbeiter.Arbeitszeiten).forEach(function(datum) { %>
+                                    <td><%= mitarbeiter.Arbeitszeiten[datum].Von || '' %></td>
+                                    <td><%= mitarbeiter.Arbeitszeiten[datum].Bis || '' %></td>
+                                <% }); %>
+                            <% } %>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr><td colspan="100%">Keine Mitarbeiterdaten vorhanden.</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+        <div id="upload-message" style="display: none;"></div>
+    </div>
+    <script src="/js/schichtplan.js"></script>

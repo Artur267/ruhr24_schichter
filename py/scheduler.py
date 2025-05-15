@@ -1,226 +1,159 @@
-# scheduler.py
-
 import json
-import os
-import sys
-import requests
+from datetime import datetime, timedelta
 import csv
 from pathlib import Path
-from datetime import datetime, timedelta
-from ortools.linear_solver import pywraplp
-from dotenv import load_dotenv
+import sys
 
-# === 1. ENV-VARIABLEN LADEN ===
-load_dotenv()
-gemini_api_key = os.getenv("GOOGLE_API_KEY")  # Nutzt Gemini statt OpenAI
-gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+ROOT_DIR = Path.cwd()
+DATA_DIR = ROOT_DIR / "data"
+EMPLOYEE_DATA_PATH = DATA_DIR / "mitarbeiter.json"
+RULES_DATA_PATH = DATA_DIR / "regelwerk.json"
+SETTINGS_DATA_PATH = DATA_DIR / "settings.json"
+OUTPUT_PATH_MVP = ROOT_DIR / "results" / "output.csv"
 
-# === 2. DATEIPFADE DEFINIEREN ===
-def get_base_dir():
-    # Bestimme das Basisverzeichnis des Skripts
-    return Path(os.getcwd()).resolve()
-
-def get_file_path(filename):
-    # Rückgabe des Pfads zu einer Datei im 'data' Ordner basierend auf dem Basisverzeichnis
-    return get_base_dir() / "data" / filename
-
-# Dateipfade
-EMPLOYEE_DATA_PATH = get_file_path("mitarbeiter.json")
-SETTINGS_PATH = get_file_path("settings.json")
-RULES_PATH = get_file_path("regelwerk.json")
-OUTPUT_PATH = get_base_dir() / "results" / "output.csv"
-
-# Ausgabe der Pfade
-print("Employee Data Path:", EMPLOYEE_DATA_PATH)
-print("Settings Path:", SETTINGS_PATH)
-print("Rules Path:", RULES_PATH)
-print("Output Path:", OUTPUT_PATH)
-
-
-# === 3. HELPER: JSON-DATEIEN LADEN ===
-def load_json(path):
-    if not path.exists():
-        print(f"Datei nicht gefunden: {path}")
-        return {}
-    with open(path, 'r', encoding='utf-8') as f:
+def load_json(filepath):
+    with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# === 4. GEMINI AUFRUF ===
-if len(sys.argv) >= 3:
-    von = sys.argv[1]
-    bis = sys.argv[2]
-else:
-    von = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
-    bis = (datetime.today() + timedelta(days=7)).strftime('%Y-%m-%d')   
-    
-def call_gemini(prompt_text):
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt_text}]
-        }]
-    }
-    try:
-        response = requests.post(
-            f"{gemini_url}?key={gemini_api_key}",
-            json=payload,
-            headers={"Content-Type": "application/json"}
-        )
-        response.raise_for_status()
-        result = response.json()
-        return result['candidates'][0]['content']['parts'][0]['text']
-    except Exception as e:
-        print("Fehler bei Gemini:", e)
-        return "Fehler bei der Verarbeitung durch Gemini."
-    
-def get_shift_for_day(date):
-    """
-    Bestimmt die Schichten für einen bestimmten Tag.
-    """
-    day_of_week = date.strftime('%A')
-    shifts = []
-    print(f"Tag: {day_of_week}")
-    if day_of_week in ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']:
-        # Beispiel: An Wochentagen gibt es Früh- und Spätschicht
-        if random.random() < 0.5:
-            shifts.append("09:00-17:00")
-        else:
-            shifts.append("13:00-21:00")
-    elif day_of_week in ['Samstag', 'Sonntag']:
-        # Beispiel: Am Wochenende gibt es nur eine längere Schicht
-        shifts.append("10:00-18:00")
+def generate_csv_header(start_date_str, end_date_str):
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    header_row_1 = []
+    header_row_2 = ["NutzerID", "Nachname", "Vorname", "Ressort", "CVD", "Wochenstunden", "Geplant", "Delta"]
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        day_name = current_date.strftime("%A")
+        day_number = current_date.strftime("%d.%m.%Y")
+        header_row_1.extend([f"{day_name} {day_number}", ""]) # Datum, Leere Spalte für 'Bis'
+        header_row_2.extend(["Von", "Bis"])
+        dates.append(current_date)
+        current_date += timedelta(days=1)
 
-    return ", ".join(shifts) # Gibt die Schichten als CSV-String zurück
+    # Füge die leeren Einträge am Anfang von header_row_1 hinzu,
+    # um die Ausrichtung mit header_row_2 zu gewährleisten
+    header_row_1 = [""] * len(header_row_2[:8]) + header_row_1
 
-def get_fixed_shift_duration(shift):
-    if not shift:
-        return 0
-    start_str, end_str = shift.split(',')
-    start = datetime.strptime(start_str, '%H:%M')
-    end = datetime.strptime(end_str, '%H:%M')
-    duration = (end - start).total_seconds() / 3600
-    print(f"Schicht: {shift}, Dauer: {duration} Stunden")
-    return duration
+    return header_row_1, header_row_2, dates
 
+def create_schedule_mvp(start_date_str, end_date_str, mitarbeiter_id, output_to_stdout=False):
+    print(f"[PYTHON DEBUG] create_schedule_mvp aufgerufen mit: start={start_date_str}, end={end_date_str}, id={mitarbeiter_id}, stdout={output_to_stdout}")
+    mitarbeiter_daten = load_json(EMPLOYEE_DATA_PATH)
+    regelwerk = load_json(RULES_DATA_PATH)
+    einstellungen = load_json(SETTINGS_DATA_PATH) # Noch nicht intensiv genutzt
 
-# === 5. HAUPTFUNKTION ===
-def get_fixed_shift(employee_data, day_of_week):
-    ressort = employee_data.get("ressort")
-    vorname = employee_data.get("vorname")
-    nachname = employee_data.get("nachname")
-    weekly_hours = employee_data.get("stunden", 0)
-    
-    print(f"Ressort: {ressort}, Vorname: {vorname}, Nachname: {nachname}, Tag: {day_of_week}")
-    if ressort == "KI" and day_of_week in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']:
-        return "07:30,16:00"
-    elif ressort == "IT" and day_of_week in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']:
-        return "09:00,17:00"
-    elif vorname == "Max" and nachname == "Mustermann" and day_of_week in ['Monday', 'Tuesday', 'Wednesday']:
-        return "10:00,14:00"
-    return ""
+    _, _, planungs_tage = generate_csv_header(start_date_str, end_date_str) # Header hier nur generieren
 
+    if output_to_stdout:
+        writer = csv.writer(sys.stdout, delimiter=",", quoting=csv.QUOTE_NONE, escapechar='\\')
+        # Suche direkt nach dem spezifischen Mitarbeiter
+        for mitarbeiter in mitarbeiter_daten:
+            print(f"[PYTHON DEBUG] Vergleich: JSON-ID ({mitarbeiter['id']}), Typ JSON ({type(mitarbeiter['id'])}), Übergebene ID ({mitarbeiter_id}), Typ Übergeben ({type(mitarbeiter_id)})")
+            if str(mitarbeiter['id']) == mitarbeiter_id:
+                print(f"[PYTHON DEBUG] Mitarbeiter mit ID {mitarbeiter_id} gefunden. Starte Berechnung.")
+                wochenstunden = mitarbeiter['stunden']
+                arbeitstage_pro_woche = 5 if wochenstunden > 0 else 0
+                stunden_pro_tag = min(8.5, wochenstunden / arbeitstage_pro_woche) if arbeitstage_pro_woche > 0 else 0
+                geplante_stunden_woche = 0
+                arbeitszeiten = [mitarbeiter['id'], mitarbeiter['nachname'], mitarbeiter['vorname'],
+                                mitarbeiter['ressort'], mitarbeiter.get('cvd', False), wochenstunden, 0.0, 0.0]
 
+                arbeitsplan = {}
+                for tag in planungs_tage:
+                    arbeitsplan[tag.strftime("%Y-%m-%d")] = {"von": "", "bis": ""}
 
+                arbeitstage_counter = 0
+                for tag in planungs_tage:
+                    wochentag = tag.strftime("%A")
+                    tag_str = tag.strftime("%Y-%m-%d")
 
+                    arbeitszeit_start = einstellungen.get('kernarbeitszeit_start', "09:00") # Beispiel aus Settings
+                    fruehschicht_start = einstellungen.get('fruehschicht_start', "07:00")
 
-def plan_weekly_shifts(employee_data, week_dates):
-    weekly_contract_hours = employee_data.get("stunden", 0)
-    employee_shifts = {}
-    planned_hours_this_week = 0
-    work_days_this_week = 0
-    max_work_days = 5  # Annahme: Max. 5 Arbeitstage pro Woche für die Verteilung
+                    if wochentag != "Montag" or mitarbeiter.get('hinweise') != "nicht montags":
+                        if arbeitstage_counter < arbeitstage_pro_woche:
+                            start_zeit = fruehschicht_start if mitarbeiter.get('hinweise') == "nur Frühschicht" else arbeitszeit_start
+                            end_zeit_float = float(start_zeit.split(':')[0]) + stunden_pro_tag + float(start_zeit.split(':')[1]) / 60
+                            end_zeit_stunde = int(end_zeit_float)
+                            end_zeit_minute = int((end_zeit_float - end_zeit_stunde) * 60)
+                            end_zeit = f"{end_zeit_stunde:02d}:{end_zeit_minute:02d}"
 
-    # Zuerst alle Tage der Woche als "frei" markieren
-    for d in week_dates:
-        employee_shifts[d.strftime('%Y-%m-%d')] = ""
+                            arbeitsplan[tag_str]["von"] = start_zeit
+                            arbeitsplan[tag_str]["bis"] = end_zeit
+                            geplante_stunden_woche += stunden_pro_tag
+                            arbeitstage_counter += 1
 
-    if weekly_contract_hours > 0:
-        hours_per_day = weekly_contract_hours / max_work_days
-        current_hour = 9  # Startzeit als Beispiel
+                for tag in planungs_tage:
+                    arbeitszeiten.extend([arbeitsplan[tag.strftime("%Y-%m-%d")]["von"], arbeitsplan[tag.strftime("%Y-%m-%d")]["bis"]])
 
-        for d in week_dates:
-            day_name = d.strftime('%A')
-            date_str = d.strftime('%Y-%m-%d')
+                arbeitszeiten[6] = round(geplante_stunden_woche, 1)
+                arbeitszeiten[7] = round(geplante_stunden_woche - wochenstunden, 1)
 
-            if day_name in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] and planned_hours_this_week < weekly_contract_hours and work_days_this_week < max_work_days:
-                shift_duration = min(hours_per_day, weekly_contract_hours - planned_hours_this_week)
-                end_hour = current_hour + shift_duration
-                shift = f"{current_hour:02.0f}:00,{end_hour:02.0f}:00"
-                employee_shifts[date_str] = shift
-                planned_hours_this_week += shift_duration
-                work_days_this_week += 1
-                current_hour = 9 # Für den nächsten Tag wieder bei der Startzeit beginnen (vereinfacht)
-
-    return employee_shifts
-
-def generate_schedule(von_str, bis_str):
-    von_date = datetime.strptime(von_str, '%Y-%m-%d').date()
-    bis_date = datetime.strptime(bis_str, '%Y-%m-%d').date()
-    dates = [von_date + timedelta(days=i) for i in range((bis_date - von_date).days + 1)]
-    num_days = (bis_date - von_date).days + 1
-
-    employees = load_json(EMPLOYEE_DATA_PATH)
-
-    header_row_1 = [""] * 9
-    for d in dates:
-        header_row_1 += [d.strftime("%d.%m.%y"), ""]
-
-    header_row_2 = [
-        "NutzerID", "Nachname", "Vorname", "Ressort", "CVD",
-        "Notizen", "Wochenstunden", "MonatsSumme", "Delta"
-    ] + ["Von", "Bis"] * len(dates)
-
-    data_rows = []
-    for emp in employees:
-        weekly_contract_hours = emp.get("stunden", 0)
-        monthly_planned_hours = 0
-        all_employee_shifts = {}
-        current_week_dates = []
-
-        expected_monthly_hours = (weekly_contract_hours / 7) * num_days if weekly_contract_hours else 0
-
-        row = [
-            emp.get("id", ""),
-            emp.get("nachname", ""),
-            emp.get("vorname", ""),
-            emp.get("ressort", ""),
-            emp.get("cvd", ""),
-            emp.get("notizen", ""),
-            weekly_contract_hours,
-            0,
-            0
-        ]
-
-        for i, d in enumerate(dates):
-            current_week_dates.append(d)
-            if d.strftime('%A') == 'Sunday' or i == len(dates) - 1:
-                weekly_shifts = plan_weekly_shifts(emp, current_week_dates)
-                all_employee_shifts.update(weekly_shifts)
-                current_week_dates = []
-
-        for d in dates:
-            shift = all_employee_shifts.get(d.strftime('%Y-%m-%d'), "")
-            monthly_planned_hours += get_fixed_shift_duration(shift)
-            row.extend(shift.split(',') if shift else ["", ""])
-
-        row[7] = f"{monthly_planned_hours:.2f}"
-        row[8] = f"{monthly_planned_hours - expected_monthly_hours:.2f}"
-        data_rows.append(row)
-
-    OUTPUT_PATH.parent.mkdir(exist_ok=True)
-    with open(OUTPUT_PATH, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=",")
-        writer.writerow(header_row_1)
-        writer.writerow(header_row_2)
-        writer.writerows(data_rows)
-
-    print(f"CSV exportiert nach: {OUTPUT_PATH}")
-
-# === 6. ENTRYPOINT ===
-if __name__ == "__main__":
-    if len(sys.argv) >= 3:
-        generate_schedule(sys.argv[1], sys.argv[2])
+                print(f"[PYTHON DEBUG] Inhalt von arbeitszeiten vor dem Print: {arbeitszeiten}")
+                print(f"[PYTHON DEBUG] Arbeitszeiten: {arbeitszeiten}")
+                writer.writerow(arbeitszeiten)
+                break # Das Break ist jetzt richtig, da wir den passenden Mitarbeiter gefunden haben
+                return # Füge ein Return hinzu, um die Funktion nach der Verarbeitung zu beenden
     else:
-        today = datetime.today()
-        default_start = (today + timedelta(days=1)).strftime('%Y-%m-%d')
-        default_end = (today + timedelta(days=7)).strftime('%Y-%m-%d')
-        generate_schedule(default_start, default_end)
+        with open(OUTPUT_PATH_MVP, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f, delimiter=",", quoting=csv.QUOTE_NONE, escapechar='\\')
+            header_row_1, header_row_2, _ = generate_csv_header(start_date_str, end_date_str)
+            writer.writerow(header_row_1)
+            writer.writerow(header_row_2)
+            for mitarbeiter in mitarbeiter_daten:
+                print(f"[PYTHON DEBUG] Vergleich: Mitarbeiter-ID aus JSON ({mitarbeiter['id']}), Übergebene ID ({mitarbeiter_id}), Typ JSON ({type(mitarbeiter['id'])}), Typ Übergeben ({type(mitarbeiter_id)})")
+                if str(mitarbeiter['id']) == mitarbeiter_id:
+                    # (Wiederhole hier die Logik zur Mitarbeiterplanung)
+                    wochenstunden = mitarbeiter['stunden']
+                    arbeitstage_pro_woche = 5 if wochenstunden > 0 else 0
+                    stunden_pro_tag = min(8.5, wochenstunden / arbeitstage_pro_woche) if arbeitstage_pro_woche > 0 else 0
+                    geplante_stunden_woche = 0
+                    arbeitszeiten = [mitarbeiter['id'], mitarbeiter['nachname'], mitarbeiter['vorname'],
+                                    mitarbeiter['ressort'], mitarbeiter.get('cvd', False), wochenstunden, 0.0, 0.0]
+
+                    arbeitsplan = {}
+                    for tag in planungs_tage:
+                        arbeitsplan[tag.strftime("%Y-%m-%d")] = {"von": "", "bis": ""}
+
+                    arbeitstage_counter = 0
+                    for tag in planungs_tage:
+                        wochentag = tag.strftime("%A")
+                        tag_str = tag.strftime("%Y-%m-%d")
+
+                        arbeitszeit_start = einstellungen.get('kernarbeitszeit_start', "09:00") # Beispiel aus Settings
+                        fruehschicht_start = einstellungen.get('fruehschicht_start', "07:00")
+
+                        if wochentag != "Montag" or mitarbeiter.get('hinweise') != "nicht montags":
+                            if arbeitstage_counter < arbeitstage_pro_woche:
+                                start_zeit = fruehschicht_start if mitarbeiter.get('hinweise') == "nur Frühschicht" else arbeitszeit_start
+                                end_zeit_float = float(start_zeit.split(':')[0]) + stunden_pro_tag + float(start_zeit.split(':')[1]) / 60
+                                end_zeit_stunde = int(end_zeit_float)
+                                end_zeit_minute = int((end_zeit_float - end_zeit_stunde) * 60)
+                                end_zeit = f"{end_zeit_stunde:02d}:{end_zeit_minute:02d}"
+
+                                arbeitsplan[tag_str]["von"] = start_zeit
+                                arbeitsplan[tag_str]["bis"] = end_zeit
+                                geplante_stunden_woche += stunden_pro_tag
+                                arbeitstage_counter += 1
+
+                    for tag in planungs_tage:
+                        arbeitszeiten.extend([arbeitsplan[tag.strftime("%Y-%m-%d")]["von"], arbeitsplan[tag.strftime("%Y-%m-%d")]["bis"]])
+                    print(f"[PYTHON DEBUG] Arbeitszeiten vor dem Schreiben: {arbeitszeiten}")
+                    writer.writerow(arbeitszeiten)
+                    break
+
+    print(f"MVP Schichtplan für Mitarbeiter {mitarbeiter_id} erstellt") # Ausgabe im Backend
+if __name__ == "__main__":
+    if len(sys.argv) == 4:
+        start_date_str = sys.argv[1]
+        end_date_str = sys.argv[2]
+        mitarbeiter_id = sys.argv[3]
+        if mitarbeiter_id == "header":
+            header_row_1, header_row_2, _ = generate_csv_header(start_date_str, end_date_str)
+            writer = csv.writer(sys.stdout, delimiter=",", quoting=csv.QUOTE_NONE, escapechar='\\')
+            writer.writerow(header_row_1)
+            writer.writerow(header_row_2)
+        else:
+            create_schedule_mvp(start_date_str, end_date_str, mitarbeiter_id, True)
+    else:
+        print("Bitte Startdatum, Enddatum und Mitarbeiter-ID ('header' für Header) als Argumente übergeben (YYYY-MM-DD, YYYY-MM-DD, ID).")

@@ -298,21 +298,110 @@ app.post('/ask-gemini', async (req, res) => {
     }
 });
 
-app.post("/starte-scheduler", (req, res) => {
+app.post("/starte-scheduler", async (req, res) => {
     const von = req.body.von;
     const bis = req.body.bis;
-    console.log("[SERVER DEBUG] Empfangen: Von =", von, ", Bis =", bis);
-
+    const mitarbeiterDatenPfad = path.join(__dirname, "data", "mitarbeiter.json");
     const schedulerPath = path.join(__dirname, "py", "scheduler.py");
+    const outputPath = path.join(__dirname, "results", "output.csv");
 
-    exec(`python3 "${schedulerPath}" "${von}" "${bis}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Fehler beim Ausführen von scheduler.py: ${error}`);
-            return res.status(500).json({ error: "Fehler bei der Planung" });
+    try {
+        const mitarbeiterDatenBuffer = await fsPromises.readFile(mitarbeiterDatenPfad, 'utf8');
+        const mitarbeiterListe = JSON.parse(mitarbeiterDatenBuffer);
+        let gesamtCsvOutput = "";
+        const totalMitarbeiter = mitarbeiterListe.length;
+        let processedMitarbeiter = 0;
+        let dataRows = [];
+        let completeHeaderOutput = "";
+
+        // Header generieren und beide Zeilen in completeHeaderOutput speichern
+        const headerResult = await new Promise((resolve, reject) => {
+            exec(`python3 "${schedulerPath}" "${von}" "${bis}" "header"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error("[SERVER ERROR] Fehler beim Abrufen des Headers:", error);
+                    reject(error);
+                    return;
+                }
+                if (stderr) {
+                    console.error("[SERVER ERROR] STDERR beim Abrufen des Headers:", stderr);
+                    reject(new Error(stderr));
+                    return;
+                }
+                const headerZeilen = stdout.trim().split('\n');
+                if (headerZeilen.length === 2) {
+                    const ersteZeileRoh = headerZeilen[0].trim();
+                    const zweiteZeile = headerZeilen[1].trim();
+
+                    // Führende Kommas für die erste Zeile bis zur Spalte I (Index 8) hinzufügen
+                    const spaltenBisDatum = 8; // Korrigierter Wert
+                    const kommas = Array(spaltenBisDatum).fill('').join(',');
+                    const ersteZeileFormatiert = `${kommas}${ersteZeileRoh}`;
+
+                    completeHeaderOutput = `${ersteZeileFormatiert}\n${zweiteZeile}`;
+                    resolve(completeHeaderOutput);
+                } else {
+                    reject(new Error("Unerwartete Anzahl an Header-Zeilen"));
+                }
+            });
+        });
+        const headerResultOutput = await headerResult;
+        dataRows.push(headerResultOutput);
+        console.log("[SERVER DEBUG] Inhalt von dataRows NACH Header:", dataRows);
+
+        for (const mitarbeiter of mitarbeiterListe) {
+            processedMitarbeiter++;
+            const mitarbeiterId = mitarbeiter.id;
+            console.log(`[SERVER LOG] Verarbeite Mitarbeiter ${processedMitarbeiter}/${totalMitarbeiter} (ID: ${mitarbeiterId})`);
+            const mitarbeiterResultPromise = new Promise((resolve, reject) => {
+                exec(`python3 "${schedulerPath}" "${von}" "${bis}" "${mitarbeiterId}"`, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`[SERVER ERROR] Fehler bei Mitarbeiter ${mitarbeiterId}:`, error);
+                        reject(error);
+                        return;
+                    }
+                    if (stderr) {
+                        console.error(`[SERVER ERROR] STDERR von Python für Mitarbeiter ${mitarbeiterId}:\n`, stderr);
+                        reject(new Error(stderr));
+                        return;
+                    }
+                    console.log(`[SERVER DEBUG] STDOUT von Python für Mitarbeiter ${mitarbeiterId}:\n`, stdout);
+
+                    const dataRow = stdout.split('\n').find(line => line.startsWith(mitarbeiterId));
+
+                    if (dataRow) {
+                        const trimmedDataRow = dataRow.trim();
+                        console.log(`[SERVER DEBUG] Extrahierte Datenzeile für Mitarbeiter ${mitarbeiterId}:`, trimmedDataRow);
+                        resolve(trimmedDataRow);
+                    } else {
+                        console.warn(`[SERVER WARNUNG] Keine Datenzeile für Mitarbeiter ${mitarbeiterId} in STDOUT gefunden.`);
+                        resolve("");
+                    }
+                });
+            });
+            const mitarbeiterResult = await mitarbeiterResultPromise;
+            console.log("[SERVER DEBUG] Wert von mitarbeiterResult:", mitarbeiterResult);
+            if (mitarbeiterResult) {
+                dataRows = [...dataRows, mitarbeiterResult];
+            }
         }
-        console.log("Scheduler ausgeführt:", stdout);
-        res.json({ message: "Plan erstellt", output: stdout });
-    });
+        console.log("[SERVER DEBUG] Inhalt von dataRows VOR dem Join:", dataRows);
+        gesamtCsvOutput = dataRows.filter(row => row).join('\n');
+        try {
+            await fsPromises.writeFile(outputPath, gesamtCsvOutput, 'utf8');
+            console.log(`[SERVER LOG] Schichtplan erfolgreich gespeichert unter: ${outputPath}`);
+            res.json({ message: "MVP Plan für alle Mitarbeiter erstellt und gespeichert", output: gesamtCsvOutput });
+        } catch (writeError) {
+            console.error("[SERVER ERROR] Fehler beim Schreiben der CSV-Datei:", writeError);
+            res.status(500).json({ error: "Fehler beim Schreiben der CSV-Datei" });
+            return;
+        }
+        //res.json({ message: "MVP Plan für alle Mitarbeiter erstellt", output: gesamtCsvOutput }); // Entfernt, da die Antwort bereits im Speicher-Block gesendet wird
+    } catch (error) {
+        console.error("Fehler bei der Massenplanung:", error);
+        res.status(500).json({ error: "Fehler bei der Planung für alle Mitarbeiter" });
+    } finally {
+        console.log("[SERVER DEBUG] Schichtplanerstellung abgeschlossen (mit oder ohne Fehler).");
+    }
 });
 
 app.get('/richtlinien', (req, res) => {

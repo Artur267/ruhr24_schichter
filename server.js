@@ -7,31 +7,35 @@ const path = require('path');
 const fs = require('fs');
 const { promises: fsPromises } = fs;
 const csv = require('csv-parser');
-const multer = require('multer'); // Für Datei-Uploads hinzufügen
+const multer = require('multer');
 const app = express();
 const PORT = 3000;
 const { exec } = require('child_process');
 const RULES_PATH = path.join(__dirname, 'data', 'regelwerk.json');
 const EMPLOYEE_PATH = path.join(__dirname, 'data', 'mitarbeiter.json');
 const CALENDAR_CSV_PATH = path.join(__dirname, 'results', 'output.csv');
-const UPLOADS_PATH = path.join(__dirname, 'uploads'); // Pfad für hochgeladene Dateien
+const UPLOADS_PATH = path.join(__dirname, 'uploads');
+const SETTINGS_PATH = path.join(__dirname, 'data', 'settings.json');
+const PROMPT_PATH = path.join(__dirname, 'data', 'prompts.txt');
 
 app.use(expressLayouts);
 app.set('layout', 'layout');
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.static('public'));
-app.use(bodyParser.urlencoded({ extended: true })); // Für Formular-Daten
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Multer Konfiguration für Datei-Uploads
+// Multer Konfiguration
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // Sicherstellen, dass der Uploads-Ordner existiert
-        fsPromises.mkdir(UPLOADS_PATH, { recursive: true })
-            .then(() => cb(null, UPLOADS_PATH))
-            .catch(err => cb(err));
+    destination: async (req, file, cb) => {
+        try {
+            await fsPromises.mkdir(UPLOADS_PATH, { recursive: true });
+            cb(null, UPLOADS_PATH);
+        } catch (err) {
+            cb(err);
+        }
     },
-    filename: function (req, file, cb) {
+    filename: (req, file, cb) => {
         cb(null, file.originalname);
     }
 });
@@ -41,72 +45,217 @@ const upload = multer({ storage: storage });
 // Funktionen
 function loadEmployees() {
     try {
-        return JSON.parse(fs.readFileSync(EMPLOYEE_PATH, 'utf8'));
+        const data = fs.readFileSync(EMPLOYEE_PATH, 'utf8');
+        return JSON.parse(data);
     } catch (err) {
+        console.error("Fehler beim Laden der Mitarbeiterdaten:", err);
         return [];
     }
 }
 
 function saveEmployees(data) {
-    fs.writeFileSync(EMPLOYEE_PATH, JSON.stringify(data, null, 2));
+    try {
+        fs.writeFileSync(EMPLOYEE_PATH, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+        console.error("Fehler beim Speichern der Mitarbeiterdaten:", err);
+        throw err;
+    }
 }
 
 async function parseCSV(filePath) {
-    return new Promise((resolve, reject) => {
-        const results = [];
-        let dates = [];
+    const results = [];
+    let dates = [];
 
+    return new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
             .pipe(csv({ separator: ',', headers: false, ignoreEmpty: true }))
             .on('data', (row) => {
                 const rowValues = Object.values(row);
 
                 if (dates.length === 0) {
-                    // Erste Zeile: Datumsangaben ab dem 10. Element (Index 9), jeden zweiten Wert
                     dates = rowValues
                         .slice(9)
                         .filter((_, index) => index % 2 === 0)
-                        .map(value => value ? value.trim() : '')
+                        .map(value => String(value).trim())
                         .filter(value => value !== '');
-                } else if (rowValues[0] !== 'NutzerID') { // Skip the second header row
+                } else if (rowValues[0] !== 'NutzerID') {
                     const mitarbeiter = {
                         Arbeitszeiten: {}
                     };
 
-                    // Allgemeine Mitarbeiterdaten (Element 1 bis 9)
-                    mitarbeiter.NutzerID = rowValues[0] ? rowValues[0].trim() : '';
-                    mitarbeiter.Nachname = rowValues[1] ? rowValues[1].trim() : '';
-                    mitarbeiter.Vorname = rowValues[2] ? rowValues[2].trim() : '';
-                    mitarbeiter.Ressort = rowValues[3] ? rowValues[3].trim() : '';
-                    mitarbeiter.CVD = rowValues[4] ? rowValues[4].trim() : '';
-                    mitarbeiter.Notizen = rowValues[5] ? rowValues[5].trim() : '';
-                    mitarbeiter.Wochenstunden = rowValues[6] ? rowValues[6].trim() : '';
-                    mitarbeiter.MonatsSumme = rowValues[7] ? rowValues[7].trim() : '';
-                    mitarbeiter.Delta = rowValues[8] ? rowValues[8].trim() : '';
+                    mitarbeiter.NutzerID = String(rowValues[0]).trim() || '';
+                    mitarbeiter.Nachname = String(rowValues[1]).trim() || '';
+                    mitarbeiter.Vorname = String(rowValues[2]).trim() || '';
+                    mitarbeiter.Ressort = String(rowValues[3]).trim() || '';
+                    mitarbeiter.CVD = String(rowValues[4]).trim() || '';
+                    mitarbeiter.Notizen = String(rowValues[5]).trim() || '';
+                    mitarbeiter.Wochenstunden = String(rowValues[6]).trim() || '';
+                    mitarbeiter.MonatsSumme = String(rowValues[7]).trim() || '';
+                    mitarbeiter.Delta = String(rowValues[8]).trim() || '';
 
-                    // Arbeitszeiten (ab Element 10)
                     for (let i = 0; i < dates.length; i++) {
                         const vonIndex = 9 + i * 2;
                         const bisIndex = 10 + i * 2;
+                        const vonValue = rowValues[vonIndex] ? String(rowValues[vonIndex]).trim() : '';
+                        const bisValue = rowValues[bisIndex] ? String(rowValues[bisIndex]).trim() : '';
 
-                        if (rowValues[vonIndex] !== undefined && rowValues[bisIndex] !== undefined) {
-                            mitarbeiter.Arbeitszeiten[dates[i]] = {
-                                Von: rowValues[vonIndex] ? rowValues[vonIndex].trim() : '',
-                                Bis: rowValues[bisIndex] ? rowValues[bisIndex].trim() : ''
-                            };
-                        }
+                        mitarbeiter.Arbeitszeiten[dates[i]] = {
+                            Von: vonValue,
+                            Bis: bisValue
+                        };
                     }
                     results.push(mitarbeiter);
                 }
             })
-            .on('end', () => {
-                resolve({ dates, mitarbeiterDaten: results });
-            })
-            .on('error', (error) => reject(error));
+            .on('end', () => resolve({ dates, mitarbeiterDaten: results }))
+            .on('error', reject);
     });
 }
 
-// Neuer Endpoint für den CSV-Upload
+// Routen zu Links erstellen
+app.get('/prompt', async (req, res) => {
+  try {
+    const data = await fsPromises.readFile(PROMPT_PATH, 'utf8');
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Fehler beim Lesen der Prompt-Datei.');
+  }
+});
+
+// Neu: Endpunkt für settings.json
+app.get('/settings', async (req, res) => {
+  try {
+    const data = await fsPromises.readFile(SETTINGS_PATH, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Fehler beim Lesen der Settings-Datei.');
+  }
+});
+
+app.get('/mitarbeiter-daten', (req, res) => {
+    try{
+        res.json(loadEmployees());
+    } catch(error){
+        res.status(500).json({error: "Fehler beim Laden der Mitarbeiterdaten"})
+    }
+});
+
+app.get('/schichtplan', async (req, res) => {
+    try {
+        const csvDaten = await parseCSV(CALENDAR_CSV_PATH);
+        console.log("CSV-Daten erfolgreich geladen:", csvDaten);
+        console.log("Mitarbeiter Daten:", csvDaten.mitarbeiterDaten);
+        console.log("Datumsdaten:", csvDaten.dates);
+        res.render('schichtplan', {
+            title: 'Mitarbeiter Schichtplan',
+            dates: csvDaten.dates,
+            mitarbeiterDaten: csvDaten.mitarbeiterDaten
+        });
+    } catch (error) {
+        console.error('Fehler beim Lesen der CSV-Datei:', error);
+        res.status(500).send('Fehler beim Anzeigen der Mitarbeiter Schichtplandaten.');
+    }
+});
+
+app.get('/bearbeiten', async (req, res) => {
+    try {
+        const csvDaten = await parseCSV(CALENDAR_CSV_PATH);
+        console.log("CSV-Daten für Bearbeiten geladen:", csvDaten);
+        res.render('bearbeiten', {
+            title: 'Mitarbeiter Schichtplan bearbeiten',
+            dates: csvDaten.dates,
+            mitarbeiterDaten: csvDaten.mitarbeiterDaten
+        });
+    } catch (error) {
+        console.error('Fehler beim Laden der Daten für die Bearbeitungsseite:', error);
+        res.status(500).send('Fehler beim Anzeigen der Bearbeitungsseite.');
+    }
+});
+
+app.get('/richtlinien', (req, res) => {
+    fs.readFile(RULES_PATH, 'utf-8', (err, data) => {
+        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Regeln.' });
+        res.json(JSON.parse(data));
+    });
+});
+
+app.get('/get-planungs-ergebnis/:problemId', async (req, res) => {
+    const problemId = req.params.problemId;
+    try {
+        console.log(`[NODE.JS PROXY] Empfange Anfrage für /get-planungs-ergebnis/${problemId}.`);
+        const javaBackendResponse = await fetch(`http://localhost:8080/api/planen/${problemId}`); // Stelle sicher, dass die URL korrekt ist
+
+        // Den Status und den Body des Java-Backends direkt an das Frontend weiterleiten
+        // Hier sollte Java JSON zurückgeben (entweder 200 OK mit Lösung oder 202 Accepted mit null Body)
+        if (javaBackendResponse.status === 202) {
+            console.log(`[NODE.JS PROXY] Java-Backend antwortet 202 für ${problemId} (noch in Arbeit).`);
+            res.status(202).end(); // Sende 202 ohne Body, da das Frontend das so erwartet
+        } else if (javaBackendResponse.status === 200) {
+            const jsonBody = await javaBackendResponse.json();
+            console.log(`[NODE.JS PROXY] Java-Backend antwortet 200 OK für ${problemId} (Lösung gefunden).`);
+            res.status(200).json(jsonBody); // Sende JSON-Lösung zurück
+        } else {
+            // Für 404 Not Found oder andere Fehler
+            const errorBody = await javaBackendResponse.text();
+            console.error(`[NODE.JS PROXY] Java-Backend antwortet ${javaBackendResponse.status} für ${problemId}: ${errorBody}`);
+            res.status(javaBackendResponse.status).send(errorBody); // Leite den Fehler weiter
+        }
+    } catch (error) {
+        console.error(`[NODE.JS PROXY] Interner Serverfehler im /get-planungs-ergebnis/${problemId} Endpunkt:`, error);
+        res.status(500).json({ error: 'Interner Serverfehler beim Abrufen des Planungsergebnisses.' });
+    }
+});
+
+app.delete('/mitarbeiter/:id', (req, res) => {
+    try{
+        const employees = loadEmployees();
+        const filtered = employees.filter(e => e.id !== req.params.id);
+        if (filtered.length === employees.length) return res.status(404).json({ error: 'Nicht gefunden' });
+        saveEmployees(filtered);
+        res.json({ success: true });
+    } catch(error){
+        res.status(500).json({error: "Fehler beim Löschen des Mitarbeiters"})
+    }
+});
+
+app.delete('/richtlinie/:id', (req, res) => {
+    const ruleId = req.params.id;
+
+    fs.readFile(RULES_PATH, 'utf-8', async (err, data) => {
+        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Datei.' });
+
+        let rules = JSON.parse(data);
+        const updatedRules = rules.filter(rule => rule.id !== ruleId);
+
+        if (rules.length === updatedRules.length) {
+            return res.status(404).json({ error: 'Regel nicht gefunden.' });
+        }
+
+        try {
+            await fsPromises.writeFile(RULES_PATH, JSON.stringify(updatedRules, null, 2), 'utf-8');
+            res.json({ success: true });
+        } catch (err) {
+            return res.status(500).json({ error: 'Fehler beim Speichern der Datei.' });
+        }
+    });
+});
+
+app.put('/mitarbeiter/:id', (req, res) => {
+    try{
+        const employees = loadEmployees();
+        const index = employees.findIndex(e => e.id === req.params.id);
+        if (index === -1) return res.status(404).json({ error: 'Nicht gefunden' });
+        employees[index] = { id: req.params.id, ...req.body };
+        saveEmployees(employees);
+        res.json({ success: true });
+    } catch(error){
+        res.status(500).json({error: "Fehler beim Aktualisieren des Mitarbeiters"})
+    }
+});
+
+// Neuer Endpunkt für den CSV-Upload
 app.post('/upload', upload.single('csvFile'), async (req, res) => {
     if (!req.file) {
         return res.status(400).send('Keine Datei hochgeladen.');
@@ -117,49 +266,35 @@ app.post('/upload', upload.single('csvFile'), async (req, res) => {
     try {
         const parsedData = await parseCSV(filePath);
         console.log('CSV-Daten erfolgreich geladen:', parsedData);
-        res.json(parsedData); // Sende die Daten als JSON
+        res.json(parsedData);
     } catch (error) {
         console.error('Fehler beim Parsen der CSV-Datei:', error);
         res.status(500).send('Fehler beim Verarbeiten der CSV-Datei.');
     } finally {
-        // Optional: Datei nach der Verarbeitung löschen
-        await fsPromises.unlink(filePath);
-        console.log('Datei gelöscht:', filePath);
+        try {
+            await fsPromises.unlink(filePath);
+            console.log('Datei gelöscht:', filePath);
+        } catch (unlinkErr) {
+                console.error("Fehler beim Löschen der Datei:", unlinkErr);
+            }
+        }
+    });
+
+app.post('/mitarbeiter', (req, res) => {
+    try{
+        const employees = loadEmployees();
+        const newEmployee = {
+            id: Date.now().toString(),
+            ...req.body
+        };
+        employees.push(newEmployee);
+        saveEmployees(employees);
+        res.json({ success: true });
+    } catch(error){
+        res.status(500).json({error: "Fehler beim Erstellen des Mitarbeiters"})
     }
 });
 
-// Routen zu Links erstellen
-app.get('/mitarbeiter-daten', (req, res) => {
-    res.json(loadEmployees());
-});
-
-app.post('/mitarbeiter', (req, res) => {
-    const employees = loadEmployees();
-    const newEmployee = {
-        id: Date.now().toString(),
-        ...req.body
-    };
-    employees.push(newEmployee);
-    saveEmployees(employees);
-    res.json({ success: true });
-});
-
-app.put('/mitarbeiter/:id', (req, res) => {
-    const employees = loadEmployees();
-    const index = employees.findIndex(e => e.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'Nicht gefunden' });
-    employees[index] = { id: req.params.id, ...req.body };
-    saveEmployees(employees);
-    res.json({ success: true });
-});
-
-app.delete('/mitarbeiter/:id', (req, res) => {
-    const employees = loadEmployees();
-    const filtered = employees.filter(e => e.id !== req.params.id);
-    if (filtered.length === employees.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    saveEmployees(filtered);
-    res.json({ success: true });
-});
 app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) => {
     const nutzerId = req.params.nutzerId;
     const arbeitszeiten = req.body;
@@ -194,7 +329,7 @@ app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) 
 
             const updatedCSV = [header.join(','), ...dataRows.map(row => row.join(','))].join('\n');
 
-            fs.writeFile(CALENDAR_CSV_PATH, updatedCSV, 'utf8', (writeErr) => {
+            fsPromises.writeFile(CALENDAR_CSV_PATH, updatedCSV, 'utf8', (writeErr) => {
                 if (writeErr) {
                     console.error('[SERVER] Fehler beim Schreiben der CSV-Datei:', writeErr);
                     return res.status(500).json({ error: 'Fehler beim Speichern der Daten.' });
@@ -208,41 +343,98 @@ app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) 
     });
 });
 
+app.post('/richtlinie', (req, res) => {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Text fehlt.' });
 
-app.get('/schichtplan', async (req, res) => {
+    fs.readFile(RULES_PATH, 'utf-8', async (err, data) => {
+        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Datei.' });
+
+        const rules = JSON.parse(data);
+        const newRule = {
+            id: Date.now().toString(),
+            text
+        };
+
+        rules.push(newRule);
+        try {
+            await fsPromises.writeFile(RULES_PATH, JSON.stringify(rules, null, 2), 'utf-8');
+            res.json({ success: true });
+        } catch (err) {
+            return res.status(500).json({ error: 'Fehler beim Schreiben.' });
+        }
+    });
+});
+
+app.post("/starte-scheduler", async (req, res) => {
+    // Hole die Daten, die vom Frontend gesendet werden
+    const { von, bis, ressort, mitarbeiterList } = req.body;
+
+    console.log("[NODE.JS PROXY] Empfange Anfrage für /starte-scheduler.");
+    console.log("[NODE.JS PROXY] Planung angefordert für Zeitraum:", von, "bis", bis);
+    console.log("[NODE.JS PROXY] Ausgewähltes Ressort:", ressort);
+    console.log("[NODE.JS PROXY] Empfangene Mitarbeiterdaten für OptaPlanner (Anzahl):", mitarbeiterList.length);
+
     try {
-        const csvDaten = await parseCSV(CALENDAR_CSV_PATH);
-        console.log("CSV-Daten erfolgreich geladen:", csvDaten);
-        console.log("Mitarbeiter Daten:", csvDaten.mitarbeiterDaten);
-        console.log("Datumsdaten:", csvDaten.dates);
-        res.render('schichtplan', {
-            title: 'Mitarbeiter Schichtplan',
-            dates: csvDaten.dates,
-            mitarbeiterDaten: csvDaten.mitarbeiterDaten
-        });
+        // Erstelle die Eingabedaten für OptaPlanner genau passend zum PlanungsanfrageDto im Java-Backend
+        const planungsDaten = {
+            von: von,
+            bis: bis,
+            ressort: ressort,
+            mitarbeiterList: mitarbeiterList.map(mitarbeiter => ({
+                id: mitarbeiter.id,
+                nachname: mitarbeiter.nachname,
+                vorname: mitarbeiter.vorname,
+                ressort: mitarbeiter.ressort,
+                wochenstunden: parseInt(mitarbeiter.wochenstunden, 10),
+                cvd: mitarbeiter.cvd // Stelle sicher, dass dies dem Java-Backend DTO entspricht
+            }))
+        };
+
+        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/planen)...");
+
+        // Sende die Daten an den OptaPlanner-Server (Java-Backend)
+        const javaBackendResponse = await axios.post('http://localhost:8080/api/planen', planungsDaten);
+
+        // Das Java-Backend antwortet jetzt mit einem 202 Accepted Status und einem TEXT-Body wie
+        // "Planung mit ID XXXXX gestartet."
+        console.log("[NODE.JS PROXY] Antwort vom Java-Backend (Status):", javaBackendResponse.status);
+        console.log("[NODE.JS PROXY] Antwort vom Java-Backend (Data):", javaBackendResponse.data); // Das ist der Text-Body
+
+        // Problem-ID aus dem TEXT-Body extrahieren
+        const responseText = javaBackendResponse.data; // Axios gibt den Text direkt in .data
+        const problemIdMatch = responseText.match(/Planung mit ID ([0-9a-fA-F-]+) gestartet\./);
+
+        if (!problemIdMatch || problemIdMatch.length < 2) {
+            console.error('[NODE.JS PROXY] FEHLER: Konnte Problem-ID aus Java-Backend-Antwort nicht extrahieren.');
+            return res.status(500).json({ error: 'Konnte Problem-ID vom Java-Backend nicht extrahieren.' });
+        }
+        const problemId = problemIdMatch[1];
+        console.log('[NODE.JS PROXY] Extrahierte Problem-ID:', problemId);
+
+        // Sende die Problem-ID als JSON an das Frontend
+        res.status(202).json({ message: "Planung erfolgreich gestartet.", problemId: problemId });
+
     } catch (error) {
-        console.error('Fehler beim Lesen der CSV-Datei:', error);
-        res.status(500).send('Fehler beim Anzeigen der Mitarbeiter Schichtplandaten.');
+        console.error("[NODE.JS PROXY] Fehler beim Starten der OptaPlanner-Planung:", error.message);
+        if (axios.isAxiosError(error) && error.response) {
+            console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
+            console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
+            res.status(error.response.status).json({
+                error: `Fehler beim Starten der OptaPlanner-Planung: ${error.response.status} - ${error.response.data || error.message}`
+            });
+        } else {
+            res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
+        }
     }
 });
 
-app.get('/bearbeiten', async (req, res) => {
-    try {
-        const csvDaten = await parseCSV(CALENDAR_CSV_PATH);
-        console.log("CSV-Daten für Bearbeiten geladen:", csvDaten);
-        res.render('bearbeiten', {
-            title: 'Mitarbeiter Schichtplan bearbeiten',
-            dates: csvDaten.dates,
-            mitarbeiterDaten: csvDaten.mitarbeiterDaten
-        });
-    } catch (error) {
-        console.error('Fehler beim Laden der Daten für die Bearbeitungsseite:', error);
-        res.status(500).send('Fehler beim Anzeigen der Bearbeitungsseite.');
-    }
-});
+// Die restlichen Routen und Funktionen bleiben unverändert
 
 if (!process.env.GOOGLE_API_KEY) {
     console.error("Fehler: GOOGLE_API_KEY nicht in der .env-Datei gefunden.");
+    // Behalte dies, falls du KI-Funktionalität an anderer Stelle noch hast.
+    // Wenn die KI komplett entfernt wurde, kann dieser Block gelöscht werden.
     process.exit(1);
 }
 const API_KEY = process.env.GOOGLE_API_KEY;
@@ -253,205 +445,78 @@ app.get('/erstellen', (req, res) => res.render('erstellen'));
 app.get('/bearbeiten', (req, res) => res.render('bearbeiten'));
 app.get('/limitationen', (req, res) => res.render('limitationen'));
 app.get('/mitarbeiter', (req, res) => res.render('mitarbeiter'));
-// app.get('/schichtplan', (req, res) => res.render('schichtplan')); // Bereits weiter oben definiert
 
-app.post('/ask-gemini', async (req, res) => {
-    try {
-        const prompt = req.body.prompt;
-        const article = req.body.article;
+function formatDateISOtoDeutsch(isoDatum) {
+    const [jahr, monat, tag] = isoDatum.split('-');
+    return `${tag}.${monat}.${jahr}`;
+}
 
-        if (!prompt || !article) {
-            return res.status(400).send("Fehler: 'prompt' und 'article' Parameter im Request Body fehlen.");
-        }
+function updateDataRows(kiAntwort, dataRowsMitPlan) {
+    const headerZeile2 = dataRowsMitPlan[0].split('\n')[1].split(',');
+    const mitarbeiterZeilenStart = 1;
 
-        const combinedPrompt = `${prompt}\n\nArtikel:\n${article}`;
+    const updatedDataRows = [...dataRowsMitPlan];
 
-        const requestBody = {
-            contents: [{
-                parts: [{ text: combinedPrompt }]
-            }]
-        };
+    for (let i = mitarbeiterZeilenStart; i < updatedDataRows.length; i++) {
+        const zeile = updatedDataRows[i].split(',');
+        const mitarbeiterId = zeile[0];
 
-        const response = await axios.post(
-            `${API_URL}?key=${API_KEY}`,
-            requestBody,
-            {
-                headers: {
-                    'Content-Type': 'application/json'
+        if (kiAntwort[mitarbeiterId]) {
+            for (const datumISO in kiAntwort[mitarbeiterId]) {
+                const schicht = kiAntwort[mitarbeiterId][datumISO];
+                const datumDeutsch = formatDateISOtoDeutsch(datumISO);
+                const spaltenIndex = headerZeile2.findIndex(header => header.includes(datumDeutsch));
+                if (spaltenIndex !== -1) {
+                    zeile[spaltenIndex] = schicht;
                 }
             }
-        );
-
-        const data = response.data;
-
-        if (data && data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
-            const answer = data.candidates[0].content.parts[0].text;
-            res.json({ answer: answer });
-        } else {
-            console.error("Unerwartete Antwortstruktur:", data);
-            res.status(500).send("Fehler: Unerwartete Antwort vom Gemini-Modell.");
+            updatedDataRows[i] = zeile.join(',');
         }
-
-    } catch (error) {
-        console.error("Fehler beim Abrufen der Gemini-Antwort:", error.response ? error.response.data : error.message);
-        res.status(500).send("Fehler beim Abrufen der Antwort vom Gemini-Modell.");
     }
-});
+    return updatedDataRows;
+}
 
-app.post("/starte-scheduler", async (req, res) => {
-    const von = req.body.von;
-    const bis = req.body.bis;
-    const mitarbeiterDatenPfad = path.join(__dirname, "data", "mitarbeiter.json");
-    const schedulerPath = path.join(__dirname, "py", "scheduler.py");
-    const outputPath = path.join(__dirname, "results", "output.csv");
+async function createCsvTemplate(von, bis) {
+  try {
+    const mitarbeiterListe = loadEmployees();
 
-    try {
-        const mitarbeiterDatenBuffer = await fsPromises.readFile(mitarbeiterDatenPfad, 'utf8');
-        const mitarbeiterListe = JSON.parse(mitarbeiterDatenBuffer);
-        let gesamtCsvOutput = "";
-        const totalMitarbeiter = mitarbeiterListe.length;
-        let processedMitarbeiter = 0;
-        let dataRows = [];
-        let completeHeaderOutput = "";
+    const startDatum = new Date(von);
+    const endDatum = new Date(bis);
+    const tage = [];
 
-        // Header generieren und beide Zeilen in completeHeaderOutput speichern
-        const headerResult = await new Promise((resolve, reject) => {
-            exec(`python3 "${schedulerPath}" "${von}" "${bis}" "header"`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error("[SERVER ERROR] Fehler beim Abrufen des Headers:", error);
-                    reject(error);
-                    return;
-                }
-                if (stderr) {
-                    console.error("[SERVER ERROR] STDERR beim Abrufen des Headers:", stderr);
-                    reject(new Error(stderr));
-                    return;
-                }
-                const headerZeilen = stdout.trim().split('\n');
-                if (headerZeilen.length === 2) {
-                    const ersteZeileRoh = headerZeilen[0].trim();
-                    const zweiteZeile = headerZeilen[1].trim();
-
-                    // Führende Kommas für die erste Zeile bis zur Spalte I (Index 8) hinzufügen
-                    const spaltenBisDatum = 8; // Korrigierter Wert
-                    const kommas = Array(spaltenBisDatum).fill('').join(',');
-                    const ersteZeileFormatiert = `${kommas}${ersteZeileRoh}`;
-
-                    completeHeaderOutput = `${ersteZeileFormatiert}\n${zweiteZeile}`;
-                    resolve(completeHeaderOutput);
-                } else {
-                    reject(new Error("Unerwartete Anzahl an Header-Zeilen"));
-                }
-            });
-        });
-        const headerResultOutput = await headerResult;
-        dataRows.push(headerResultOutput);
-        console.log("[SERVER DEBUG] Inhalt von dataRows NACH Header:", dataRows);
-
-        for (const mitarbeiter of mitarbeiterListe) {
-            processedMitarbeiter++;
-            const mitarbeiterId = mitarbeiter.id;
-            console.log(`[SERVER LOG] Verarbeite Mitarbeiter ${processedMitarbeiter}/${totalMitarbeiter} (ID: ${mitarbeiterId})`);
-            const mitarbeiterResultPromise = new Promise((resolve, reject) => {
-                exec(`python3 "${schedulerPath}" "${von}" "${bis}" "${mitarbeiterId}"`, (error, stdout, stderr) => {
-                    if (error) {
-                        console.error(`[SERVER ERROR] Fehler bei Mitarbeiter ${mitarbeiterId}:`, error);
-                        reject(error);
-                        return;
-                    }
-                    if (stderr) {
-                        console.error(`[SERVER ERROR] STDERR von Python für Mitarbeiter ${mitarbeiterId}:\n`, stderr);
-                        reject(new Error(stderr));
-                        return;
-                    }
-                    console.log(`[SERVER DEBUG] STDOUT von Python für Mitarbeiter ${mitarbeiterId}:\n`, stdout);
-
-                    const dataRow = stdout.split('\n').find(line => line.startsWith(mitarbeiterId));
-
-                    if (dataRow) {
-                        const trimmedDataRow = dataRow.trim();
-                        console.log(`[SERVER DEBUG] Extrahierte Datenzeile für Mitarbeiter ${mitarbeiterId}:`, trimmedDataRow);
-                        resolve(trimmedDataRow);
-                    } else {
-                        console.warn(`[SERVER WARNUNG] Keine Datenzeile für Mitarbeiter ${mitarbeiterId} in STDOUT gefunden.`);
-                        resolve("");
-                    }
-                });
-            });
-            const mitarbeiterResult = await mitarbeiterResultPromise;
-            console.log("[SERVER DEBUG] Wert von mitarbeiterResult:", mitarbeiterResult);
-            if (mitarbeiterResult) {
-                dataRows = [...dataRows, mitarbeiterResult];
-            }
-        }
-        console.log("[SERVER DEBUG] Inhalt von dataRows VOR dem Join:", dataRows);
-        gesamtCsvOutput = dataRows.filter(row => row).join('\n');
-        try {
-            await fsPromises.writeFile(outputPath, gesamtCsvOutput, 'utf8');
-            console.log(`[SERVER LOG] Schichtplan erfolgreich gespeichert unter: ${outputPath}`);
-            res.json({ message: "MVP Plan für alle Mitarbeiter erstellt und gespeichert", output: gesamtCsvOutput });
-        } catch (writeError) {
-            console.error("[SERVER ERROR] Fehler beim Schreiben der CSV-Datei:", writeError);
-            res.status(500).json({ error: "Fehler beim Schreiben der CSV-Datei" });
-            return;
-        }
-        //res.json({ message: "MVP Plan für alle Mitarbeiter erstellt", output: gesamtCsvOutput }); // Entfernt, da die Antwort bereits im Speicher-Block gesendet wird
-    } catch (error) {
-        console.error("Fehler bei der Massenplanung:", error);
-        res.status(500).json({ error: "Fehler bei der Planung für alle Mitarbeiter" });
-    } finally {
-        console.log("[SERVER DEBUG] Schichtplanerstellung abgeschlossen (mit oder ohne Fehler).");
+    for (let aktuellesDatum = startDatum; aktuellesDatum <= endDatum; aktuellesDatum.setDate(aktuellesDatum.getDate() + 1)) {
+      const tagString = aktuellesDatum.toISOString().split('T')[0];
+      const wochentag = aktuellesDatum.toLocaleDateString('de-DE', { weekday: 'short' });
+      tage.push({ tagString, wochentag });
     }
-});
 
-app.get('/richtlinien', (req, res) => {
-    fs.readFile(RULES_PATH, 'utf-8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Regeln.' });
-        res.json(JSON.parse(data));
+    let headerZeile1 = 'NutzerID,Nachname,Vorname,Ressort,CVD,Stunden';
+    let headerZeile2 = 'NutzerID,Nachname,Vorname,Ressort,CVD,Stunden';
+    tage.forEach(tag => {
+      headerZeile1 += `,${tag.tagString},`;
+      headerZeile2 += `,${tag.wochentag} Von,${tag.wochentag} Bis`;
     });
-});
+    headerZeile1 += '\n';
+    headerZeile2 += '\n';
 
-app.delete('/richtlinie/:id', (req, res) => {
-    const ruleId = req.params.id;
+    const mitarbeiterZeilen = mitarbeiterListe.map(mitarbeiter => {
+      let zeile = `${mitarbeiter.id},${mitarbeiter.nachname},${mitarbeiter.vorname},${mitarbeiter.ressort},${mitarbeiter.cvd},${mitarbeiter.stunden}`;
+      tage.forEach(() => {
+        zeile += ',,';
+      });
+      return zeile;
+    }).join('\n');
 
-    fs.readFile(RULES_PATH, 'utf-8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Datei.' });
+    const csvInhalt = headerZeile1 + headerZeile2 + mitarbeiterZeilen;
 
-        let rules = JSON.parse(data);
-        const updatedRules = rules.filter(rule => rule.id !== ruleId);
-
-        if (rules.length === updatedRules.length) {
-            return res.status(404).json({ error: 'Regel nicht gefunden.' });
-        }
-
-        fs.writeFile(RULES_PATH, JSON.stringify(updatedRules, null, 2), 'utf-8', (err) => {
-            if (err) return res.status(500).json({ error: 'Fehler beim Speichern der Datei.' });
-            res.json({ success: true });
-        });
-    });
-});
-
-app.post('/richtlinie', (req, res) => {
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ error: 'Text fehlt.' });
-
-    fs.readFile(RULES_PATH, 'utf-8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Datei.' });
-
-        const rules = JSON.parse(data);
-        const newRule = {
-            id: Date.now().toString(),
-            text
-        };
-
-        rules.push(newRule);
-
-        fs.writeFile(RULES_PATH, JSON.stringify(rules, null, 2), 'utf-8', (err) => {
-            if (err) return res.status(500).json({ error: 'Fehler beim Schreiben.' });
-            res.json({ success: true });
-        });
-    });
-});
+    await fsPromises.writeFile(CALENDAR_CSV_PATH, csvInhalt, 'utf8');
+    console.log(`[SERVER] CSV-Template mit Header und Mitarbeiterdaten erstellt: ${CALENDAR_CSV_PATH}`);
+    return { success: true, message: 'CSV-Template erstellt' };
+  } catch (error) {
+    console.error('[SERVER] Fehler beim Erstellen des CSV-Templates:', error);
+    return { success: false, message: `Fehler beim Erstellen des CSV-Templates: ${error.message}` };
+  }
+}
 
 app.listen(PORT, () => {
     console.log(`Server läuft auf http://localhost:${PORT}`);

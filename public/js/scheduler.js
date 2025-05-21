@@ -1,134 +1,128 @@
-// scheduler.js
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("schedule-form");
   const output = document.getElementById("shift-output");
-  const promptContainer = document.getElementById("prompt-container");
-  const promptPreview = document.getElementById("prompt-preview");
+  const statusMessage = document.getElementById("statusMessage");
 
   form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Standard-Formular-Absendeverhalten verhindern
 
+    statusMessage.textContent = 'Planung wird gestartet...'; // Initialisiere Statusmeldung
+    output.textContent = 'Warte auf Ergebnis...'; // Initialisiere Ergebnisbereich
+
+    // Eingabewerte aus den HTML-Elementen abrufen
     const von = document.getElementById("von").value;
     const bis = document.getElementById("bis").value;
+    // Sicherstellen, dass das Element existiert, bevor .value aufgerufen wird
+    const selectedRessort = document.getElementById("ressort") ? document.getElementById("ressort").value : '';
 
-    console.log("[DEBUG] Von:", von);
-    console.log("[DEBUG] Bis:", bis);
+    console.log("[DEBUG] Planung angefordert für Zeitraum:", von, "bis", bis);
+    console.log("[DEBUG] Ausgewähltes Ressort:", selectedRessort);
 
+    // Grundlegende Validierung der Eingabedaten
     if (!von || !bis || new Date(bis) < new Date(von)) {
-      alert("Bitte wähle einen gültigen Zeitraum (Von darf nicht nach Bis liegen).");
+      alert("Bitte wähle einen gültigen Zeitraum (Startdatum darf nicht nach Enddatum liegen).");
+      statusMessage.textContent = 'Fehler: Ungültiger Zeitraum.';
       return;
     }
 
     try {
-      console.log("[DEBUG] Lade Regeln und Mitarbeiterdaten...");
+      console.log("[DEBUG] Lade Mitarbeiterdaten...");
+      // Sicherstellen, dass der /mitarbeiter-daten Endpunkt im Node.js Backend existiert und korrekte Daten zurückgibt
+      const employees = await fetch('/mitarbeiter-daten').then(res => {
+          if (!res.ok) {
+              throw new Error(`Fehler beim Laden der Mitarbeiterdaten: ${res.status} ${res.statusText}`);
+          }
+          return res.json();
+      });
+      console.log("[DEBUG] Mitarbeiterdaten geladen:", employees);
 
-      const [rules, employees] = await Promise.all([
-        fetch('/richtlinien').then(res => res.json()),
-        fetch('/mitarbeiter-daten').then(res => res.json())
-      ]);
+      const requestBody = {
+        von: von,
+        bis: bis,
+        ressort: selectedRessort,
+        mitarbeiterList: employees.map(mitarbeiter => ({
+          id: mitarbeiter.id,
+          nachname: mitarbeiter.nachname,
+          vorname: mitarbeiter.vorname,
+          ressort: mitarbeiter.ressort,
+          wochenstunden: parseInt(mitarbeiter.stunden, 10),
+          cvd: mitarbeiter.cvd // Stelle sicher, dass `cvd` ein boolean oder null/undefiniert ist, wenn es im Java-Backend als boolean erwartet wird.
+        }))
+      };
 
-      console.log("[DEBUG] Regeln:", rules);
-      console.log("[DEBUG] Mitarbeiter:", employees);
+      console.log("[DEBUG] Sende Planungsanfrage an das Java-Backend (über Node.js Proxy)...");
 
-      const rulesText = rules.map(r => `- ${r.text}`).join("\n");
-      const employeesText = employees.map(e =>
-        `${e.vorname} ${e.nachname}, ${e.stunden}h, ${e.ressort}${e.cvd ? ", CvD" : ""}`
-      ).join("\n");
-      console.log("[DEBUG] Employeestext Text:", employeesText);
-      const article = `Regeln:\n${rulesText}\n\nMitarbeiter:\n${employeesText}`;
-      const prompt = `
-        Du bist ein intelligentes Planungssystem und sollst auf Basis der folgenden Daten einen detaillierten Schichtplan im CSV-Format erstellen.
-
-        Die Liste enthält Mitarbeiter mit folgenden Angaben:
-        - ID (eindeutig, z. B. 1, 2, 3)
-        - Vorname
-        - Nachname
-        - Ressort (z. B. Politik, Sport, etc.)
-        - CvD (true/false)
-        - Wochenstunden (z. B. 20, 40)
-        - Optional: Hinweise wie Urlaub oder Einschränkungen
-
-        Berücksichtige dabei:
-        - Den Zeitraum ${von} – ${bis}
-        - CvD-Rollen müssen regelmäßig, aber nicht gleichzeitig vergeben werden
-        - Die Arbeitsstunden pro Woche sollen zur Vertragszeit passen (±10 %)
-        - Die Schichten sollen fair und gleichmäßig verteilt sein
-        - Wenn jemand Einschränkungen hat (z. B. "nicht montags"), soll das respektiert werden
-        - Die Ressortverteilung soll möglichst ausgeglichen sein
-
-        **WICHTIG**:
-        Gib den Plan **im CSV-Format** aus, damit ich ihn direkt in Excel oder Google Sheets importieren kann.
-
-        ### Format:
-        - Zeile 1: Enthält das Datum pro Tag im Format "Montag 13.05.2025", "Dienstag 14.05.2025", usw. (jeweils eine eigene Spalte ab Spalte G)
-        - Zeile 2: Spaltenüberschriften:
-          - Spalte A: ID
-          - Spalte B: Nachname
-          - Spalte C: Vorname
-          - Spalte D: Ressort
-          - Spalte E: CvD
-          - Spalte F: Wochenstunden
-          - Spalte G+: Pro Datum (z. B. Montag 13.05.2025) die Schichteinträge
-
-        ### Schichteintrag in Zellen:
-        - Trage in den Tageszellen **konkrete Arbeitszeiten** im Format „09:00–17:00“ ein
-        - Wenn jemand an einem Tag CvD ist, schreibe z. B. „09:00–17:00 [CvD]“
-        - Lasse Zellen leer, wenn jemand nicht arbeitet
-
-        ### Beispielzelle:
-        "09:00–17:00 [CvD]" oder "13:00–18:00"
-
-        Am Ende des Plans soll zusätzlich eine Übersicht erscheinen:
-
-        ### Übersicht:
-        - Auflistung, wie viele Stunden pro Person eingeplant wurden
-        - Ob die Wochenstunden erfüllt wurden (±10 % erlaubt)
-        - Kurze Hinweise zu Abweichungen oder Besonderheiten (z. B. CvD-Verteilung, Urlaub, Einschränkungen)
-
-        Zusätzlich soll es um folgende Mitarbeiter gehen und diese zusätzlichen Regeln gelten:\n\n${article}
-
-        Halte dich **strikt an das vorgegebene Format**, damit der Output direkt als CSV importiert werden kann.
-        benutze Testweise erstmal Testdaten für 15 Testpersonen! die Liste mit unseren Mitarbeitern und deren Feiertagsdaetn ist unvollständig
-        `;
-
-      console.log("[DEBUG] Generierter Prompt:", prompt);
-
-      // Prompt in Textarea anzeigen
-      if (promptPreview) {
-        promptPreview.value = prompt;
-      }
-
-      console.log("[DEBUG] Sende Anfrage an /starte-scheduler...");
-      const res = await fetch("/starte-scheduler", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ von: von, bis: bis, prompt: prompt, article: article })
+      // 1. POST-Request zum Starten der Planung an DEIN NODE.JS ENDPUNKT `/starte-scheduler`
+      // Node.js leitet diesen dann an dein Java-Backend weiter.
+      const response = await fetch('/starte-scheduler', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
-      console.log("[DEBUG] Antwortstatus:", res.status);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Fehler vom Server: ${res.status} - ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP-Fehler beim Starten der Planung! Status: ${response.status}, Nachricht: ${errorText}`);
       }
 
-      const data = await res.json();
-      console.log("[DEBUG] Antwortdaten:", data);
+      // Der Node.js Endpunkt /starte-scheduler MUSS jetzt die problemId vom Java-Backend weitergeben.
+      // Annahme: Node.js gibt ein JSON-Objekt zurück wie `{ message: "Planung gestartet mit ID ...", problemId: "..." }`
+      const startResult = await response.json(); // Muss jetzt JSON sein!
+      const problemId = startResult.problemId; // Extrahieren der ID
 
-      output.textContent = data.answer || "Keine Antwort erhalten.";
+      if (!problemId) {
+          throw new Error('Fehler: Keine Problem-ID vom Server erhalten.');
+      }
+      
+      statusMessage.textContent = `Planung (ID: ${problemId}) wurde gestartet. Bitte warten...`;
+
+      // 2. Polling für das Ergebnis über den neuen GET-Endpunkt des Java-Backends (via Node.js Proxy)
+      const intervalId = setInterval(async () => {
+        try {
+            const resultResponse = await fetch(`/get-planungs-ergebnis/${problemId}`); // Neuer Node.js Proxy Endpunkt!
+
+            if (resultResponse.status === 202) {
+                statusMessage.textContent += '.'; // Zeige dem Benutzer, dass noch gewartet wird
+            } else if (resultResponse.status === 200) {
+                clearInterval(intervalId); // Polling stoppen
+                const finalSolution = await resultResponse.json();
+                statusMessage.textContent = `Planung (ID: ${problemId}) abgeschlossen!`;
+                // Zeige nur relevante Daten aus zuteilungList an
+                output.textContent = `Planung erfolgreich! Score: ${finalSolution.score || 'N/A'}\n\nGenerierte Zuteilungen:\n${JSON.stringify(finalSolution.zuteilungList.map(z => ({
+                    mitarbeiter: z.mitarbeiter ? `${z.mitarbeiter.vorname} ${z.mitarbeiter.nachname}` : 'UNBESETZT',
+                    schicht: z.schicht ? `${z.schicht.datum} ${z.schicht.startZeit}-${z.schicht.endZeit} (${z.schicht.ressortBedarf})` : 'Keine Schicht zugewiesen'
+                })), null, 2)}`;
+                
+                alert("Schichtplanung erfolgreich abgeschlossen!");
+                console.log('Finale Lösung:', finalSolution);
+                // Hier kannst du die finale Lösung in einer Tabelle oder ähnlichem anzeigen
+            } else if (resultResponse.status === 404) {
+                clearInterval(intervalId); // Polling stoppen
+                statusMessage.textContent = `Fehler: Planung mit ID ${problemId} nicht gefunden.`;
+                output.textContent = 'Ergebnis nicht verfügbar.';
+                alert('Planung nicht gefunden. Eventuell abgelaufen oder falsche ID.');
+            } else {
+                clearInterval(intervalId); // Polling stoppen
+                const errorText = await resultResponse.text();
+                statusMessage.textContent = `Fehler beim Abrufen der Planung: ${resultResponse.status}, ${errorText}`;
+                output.textContent = 'Fehler beim Laden des Ergebnisses.';
+                console.error('Fehler beim Abrufen der Planung:', resultResponse.status, errorText);
+            }
+        } catch (pollingError) {
+            clearInterval(intervalId); // Polling stoppen
+            statusMessage.textContent = `Ein Fehler beim Polling ist aufgetreten: ${pollingError.message}`;
+            output.textContent = 'Fehler beim Laden des Ergebnisses.';
+            console.error('Polling-Fehler:', pollingError);
+        }
+      }, 3000); // Alle 3 Sekunden nachfragen
 
     } catch (err) {
-      console.error("Fehler beim Abruf des Schichtplans:", err);
-      output.textContent = "Fehler beim Abruf des Schichtplans. Details siehe Konsole.";
+      console.error("Fehler bei der Planung:", err);
+      statusMessage.textContent = `Ein Fehler ist aufgetreten: ${err.message}`;
+      output.textContent = `Fehler bei der Planung. Details siehe Konsole: ${err.message}`;
+      alert(`Ein Fehler ist aufgetreten: ${err.message}`);
     }
   });
 });
-
-// Funktion zum Ein-/Ausblenden des Prompt-Containers
-function togglePromptView() {
-  const promptContainer = document.getElementById("prompt-container");
-  if (!promptContainer) return;
-
-  const isVisible = promptContainer.style.display === "block";
-  promptContainer.style.display = isVisible ? "none" : "block";
-}

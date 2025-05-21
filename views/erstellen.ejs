@@ -4,21 +4,22 @@
   <form id="schedule-form" class="input-section">
     <div class="date-range">
       <label for="von">Von:</label>
-      <input type="date" id="von" name="von">
-		
-      <label for="bis">Bis:</label>
-      <input type="date" id="bis" name="bis">
-    </div>
+      <input type="date" id="von" name="von" required> <label for="bis">Bis:</label>
+      <input type="date" id="bis" name="bis" required> </div>
 
     <div class="options">
-      <!-- Hier könnten weitere Optionen rein -->
-    </div>
+      <label for="ressort">Ressort:</label>
+      <select id="ressort" name="ressort">
+          <option value="KI">KI</option>
+          <option value="Technik">Technik</option>
+          </select><br><br>
+      </div>
 
+    <div class="button-group">
+        <button class="button" type="submit">🧠 Schichtplan erstellen</button>
+        </div>
 
-<div class="button-group">
-  <button class="button" type="submit">🧠 Schichtplan erstellen</button>
-  <button type="button" onclick="togglePromptView()">🪄 Prompt anzeigen</button>
-</div>
+    <div id="statusMessage" style="margin-top: 1rem; font-weight: bold;"></div>
 
     <div id="prompt-container" style="display: none; margin-top: 1rem;">
       <h3>Gesendeter Prompt</h3>
@@ -28,8 +29,7 @@
 
   <div class="output-section">
     <h2>Aktueller Schichtplan</h2>
-    <div id="shift-output" class="shift-output">
-      Noch kein Plan erstellt.
+    <div id="shift-output" class="shift-output"> Noch kein Plan erstellt.
     </div>
   </div>
 </div>

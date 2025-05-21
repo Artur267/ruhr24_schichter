@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<solver xmlns="https://www.optaplanner.org/xsd/solver">
+
+    <solutionClass>com.ruhr24.schichter.domain.SchichtPlan</solutionClass>
+    <entityClass>com.ruhr24.schichter.domain.Zuteilung</entityClass>
+
+    <scoreDirectorFactory>
+        <easyScoreCalculatorClass>com.ruhr24.schichter.solver.SimpleScoreCalculator</easyScoreCalculatorClass>
+    </scoreDirectorFactory>
+
+    <termination>
+        <secondsSpentLimit>60</secondsSpentLimit>
+    </termination>
+
+</solver>

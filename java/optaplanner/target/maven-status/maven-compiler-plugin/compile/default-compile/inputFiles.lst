@@ -1,0 +1,10 @@
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/SchichtplanApplication.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/solver/SimpleScoreCalculator.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Schicht.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Mitarbeiter.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/controller/PlanningController.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/dto/PlanungsanfrageDto.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/controller/SolverController.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Zuteilung.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/solver/SolverConfigProvider.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/SchichtPlan.java

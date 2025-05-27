@@ -6,6 +6,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
+import com.ruhr24.schichter.domain.Mitarbeiter; // Importiere deine Mitarbeiter-Klasse
+import com.ruhr24.schichter.domain.SchichtBlock; // Importiere deine SchichtBlock-Klasse
 import com.ruhr24.schichter.domain.SchichtPlan; // Importiere deine Solution-Klasse
 import java.util.UUID; // Importiere UUID
 

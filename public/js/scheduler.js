@@ -45,8 +45,22 @@ document.addEventListener("DOMContentLoaded", () => {
           nachname: mitarbeiter.nachname,
           vorname: mitarbeiter.vorname,
           ressort: mitarbeiter.ressort,
-          wochenstunden: parseInt(mitarbeiter.stunden, 10),
-          cvd: mitarbeiter.cvd // Stelle sicher, dass `cvd` ein boolean oder null/undefiniert ist, wenn es im Java-Backend als boolean erwartet wird.
+          // ACHTUNG: Stelle sicher, dass mitarbeiter.wochenstunden existiert und richtig benannt ist!
+          // Oder passe es an, wenn dein /mitarbeiter-daten Endpoint es anders liefert (z.B. als 'stunden')
+          wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0,
+          cvd: mitarbeiter.cvd ?? false, // Immer noch gut, einen Default zu haben
+
+          // ***************************************************************
+          // HIER DIE NEUEN FELDER HINZUFÜGEN, GENAU WIE IM JAVA-DTO!
+          // ABER: Stelle sicher, dass sie auch vom /mitarbeiter-daten Endpoint kommen!
+          // ***************************************************************
+          email: mitarbeiter.email ?? null, // Oder "" falls String erwartet
+          stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null, // Oder ""
+          notizen: mitarbeiter.notizen ?? null, // Oder ""
+          rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [], // Sollte ein Array sein
+          teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [], // Sollte ein Array sein
+          wunschschichten: mitarbeiter.wunschschichten ?? [], // Falls vorhanden
+          urlaubstageSet: mitarbeiter.urlaubstageSet ?? [] // Falls vorhanden, und Korrektur des Namens
         }))
       };
 

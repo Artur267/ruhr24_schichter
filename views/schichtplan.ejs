@@ -5,7 +5,7 @@
         <label for="ressortFilter">Ressort:</label>
         <select id="ressortFilter">
             <option value="">Alle Ressorts</option>
-        </select>
+            </select>
 
         <label for="cvdFilter">CVD:</label>
         <select id="cvdFilter">
@@ -18,18 +18,23 @@
         <input type="text" id="mitarbeiterSuche" placeholder="Nach Name oder ID suchen">
     </div>
 
+    <div class="table-container">
     <table class="mitarbeiter-kalender" id="mitarbeiterKalender">
         <thead>
             <tr>
-                <th>NutzerID</th>
-                <th>Nachname</th>
-                <th>Vorname</th>
-                <th>Ressort</th>
-                <th>CVD</th>
-                <th class="notizen-spalte">Notizen</th>
-                <th>Wochenstunden</th>
-                <th>MonatsSumme</th>
-                <th>Delta</th>
+                <th class="sticky-col sticky-col-0">ID</th>
+                <th class="sticky-col sticky-col-1">Nachname</th>
+                <th class="sticky-col sticky-col-2">Vorname</th>
+                <th class="sticky-col sticky-col-3">E-Mail</th>
+                <th class="sticky-col sticky-col-4">Stellenbez.</th>
+                <th class="sticky-col sticky-col-5">Ressort</th>
+                <th class="sticky-col sticky-col-6">CVD</th>
+                <th class="sticky-col sticky-col-7">Qualifikationen</th>
+                <th class="sticky-col sticky-col-8">Teams</th>
+                <th class="sticky-col sticky-col-9 notizen-spalte">Notizen</th>
+                <th class="sticky-col sticky-col-10">Wochenstunden</th>
+                <th class="sticky-col sticky-col-11">MonatsSumme</th>
+                <th class="sticky-col sticky-col-12">Delta</th>
                 <% if (dates && dates.length > 0) { %>
                     <% dates.forEach(function(date) { %>
                         <th colspan="2"><%= date %></th>
@@ -37,41 +42,172 @@
                 <% } %>
             </tr>
             <tr>
-                <th colspan="9"></th>
+                <th class="sticky-col sticky-col-0"></th>
+                <th class="sticky-col sticky-col-1"></th>
+                <th class="sticky-col sticky-col-2"></th>
+                <th class="sticky-col sticky-col-3"></th>
+                <th class="sticky-col sticky-col-4"></th>
+                <th class="sticky-col sticky-col-5"></th>
+                <th class="sticky-col sticky-col-6"></th>
+                <th class="sticky-col sticky-col-7"></th>
+                <th class="sticky-col sticky-col-8"></th>
+                <th class="sticky-col sticky-col-9"></th>
+                <th class="sticky-col sticky-col-10"></th>
+                <th class="sticky-col sticky-col-11"></th>
+                <th class="sticky-col sticky-col-12"></th>
                 <% if (dates && dates.length > 0) { %>
                     <% for (let i = 0; i < dates.length; i++) { %>
                         <th>Von</th>
                         <th>Bis</th>
                     <% } %>
                 <% } %>
-                </tr>
-            </thead>
-            <tbody id="mitarbeiterKalenderTbody" data-mitarbeiter-daten="<%= JSON.stringify(mitarbeiterDaten) %>">
-                <% if (mitarbeiterDaten && mitarbeiterDaten.length > 0) { %>
-                    <% mitarbeiterDaten.forEach(function(mitarbeiter) { %>
-                        <tr>
-                            <td><%= mitarbeiter.NutzerID %></td>
-                            <td><%= mitarbeiter.Nachname %></td>
-                            <td><%= mitarbeiter.Vorname %></td>
-                            <td><%= mitarbeiter.Ressort %></td>
-                            <td><%= mitarbeiter.CVD %></td>
-                            <td class="notizen-spalte"><%= mitarbeiter.Notizen %></td>
-                            <td><%= mitarbeiter.Wochenstunden %></td>
-                            <td><%= mitarbeiter.MonatsSumme %></td>
-                            <td><%= mitarbeiter.Delta %></td>
-                            <% if (dates && dates.length > 0) { %>
-                                <% Object.keys(mitarbeiter.Arbeitszeiten).forEach(function(datum) { %>
-                                    <td><%= mitarbeiter.Arbeitszeiten[datum].Von || '' %></td>
-                                    <td><%= mitarbeiter.Arbeitszeiten[datum].Bis || '' %></td>
-                                <% }); %>
-                            <% } %>
-                        </tr>
-                    <% }); %>
-                <% } else { %>
-                    <tr><td colspan="100%">Keine Mitarbeiterdaten vorhanden.</td></tr>
-                <% } %>
-            </tbody>
-        </table>
-        <div id="upload-message" style="display: none;"></div>
-    </div>
-    <script src="/js/schichtplan.js"></script>
+            </tr>
+        </thead>
+        <tbody id="mitarbeiterKalenderTbody" data-mitarbeiter-daten="<%= JSON.stringify(mitarbeiterDaten) %>">
+            <% if (mitarbeiterDaten && mitarbeiterDaten.length > 0) { %>
+                <% mitarbeiterDaten.forEach(function(mitarbeiter) { %>
+                    <tr>
+                        <td class="sticky-col sticky-col-0"><%= mitarbeiter.id || '' %></td>
+                        <td class="sticky-col sticky-col-1"><%= mitarbeiter.nachname || '' %></td>
+                        <td class="sticky-col sticky-col-2"><%= mitarbeiter.vorname || '' %></td>
+                        <td class="sticky-col sticky-col-3"><%= mitarbeiter.email || '' %></td>
+                        <td class="sticky-col sticky-col-4"><%= mitarbeiter.stellenbezeichnung || '' %></td>
+                        <td class="sticky-col sticky-col-5"><%= mitarbeiter.ressort || '' %></td>
+                        <td class="sticky-col sticky-col-6"><%= mitarbeiter.cvd ? "Ja" : "Nein" %></td>
+                        <td class="sticky-col sticky-col-7"><%= (mitarbeiter.rollenUndQualifikationen || []).join(', ') || '' %></td>
+                        <td class="sticky-col sticky-col-8"><%= (mitarbeiter.teamsUndZugehoerigkeiten || []).join(', ') || '' %></td>
+                        <td class="sticky-col sticky-col-9 notizen-spalte"><%= mitarbeiter.notizen || '' %></td>
+                        <td class="sticky-col sticky-col-10"><%= mitarbeiter.wochenstunden || '' %></td>
+                        <td class="sticky-col sticky-col-11"><%= mitarbeiter.monatsSumme || '' %></td>
+                        <td class="sticky-col sticky-col-12"><%= mitarbeiter.delta || '' %></td>
+                        <%
+                        // Iteriere hier über das 'dates'-Array, NICHT über Object.keys(mitarbeiter.Arbeitszeiten)
+                        // Das stellt sicher, dass die Reihenfolge der Spalten immer mit dem Header übereinstimmt.
+                        if (dates && dates.length > 0) {
+                            dates.forEach(function(datum) {
+                                const zeiten = mitarbeiter.Arbeitszeiten[datum];
+                                const vonZeit = zeiten ? zeiten.Von : '';
+                                const bisZeit = zeiten ? zeiten.Bis : '';
+                        %>
+                            <td data-label="<%= datum %> Von"><%= vonZeit || '-' %></td>
+                            <td data-label="<%= datum %> Bis"><%= bisZeit || '-' %></td>
+                        <%
+                            });
+                        }
+                        %>
+                    </tr>
+                <% }); %>
+            <% } else { %>
+                <tr><td colspan="100%">Keine Mitarbeiterdaten vorhanden.</td></tr>
+            <% } %>
+        </tbody>
+    </table>
+</div>
+    <div id="upload-message" style="display: none;"></div>
+</div>
+
+<style>
+    /* Allgemeine Tabellenstile */
+    .table-container {
+        overflow-x: auto; /* Ermöglicht horizontales Scrollen */
+        width: 100%;
+        margin-top: 20px;
+        position: relative; /* Wichtig für sticky Positioning */
+    }
+
+    .mitarbeiter-kalender {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        font-size: 0.85em; /* Etwas kleiner für mehr Inhalt */
+    }
+
+    .mitarbeiter-kalender th,
+    .mitarbeiter-kalender td {
+        border: 1px solid #ddd;
+        padding: 8px 10px;
+        text-align: left;
+        white-space: nowrap; /* Verhindert Zeilenumbruch */
+    }
+
+    .mitarbeiter-kalender th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+
+    .mitarbeiter-kalender tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    .mitarbeiter-kalender tr:hover {
+        background-color: #e9e9e9;
+    }
+
+    /* Styling für Notizen-Spalte */
+    .notizen-spalte {
+        max-width: 150px; /* Begrenze die Breite */
+        white-space: normal; /* Erlaube Zeilenumbruch, wenn Notizen lang sind */
+    }
+
+    /* Sticky Columns Styling */
+    .sticky-col {
+        position: -webkit-sticky; /* Für Safari */
+        position: sticky;
+        background-color: #f2f2f2; /* Gleicher Hintergrund wie Header */
+        z-index: 2; /* Höher als normaler Header, aber unter sticky-header-row */
+    }
+
+    /* Spezifische 'left'-Werte für jede sticky Spalte */
+    /* Die Breiten müssen möglicherweise angepasst werden, abhängig von deinem Inhalt */
+    .sticky-col-0 { left: 0; min-width: 60px; } /* ID */
+    .sticky-col-1 { left: 60px; min-width: 100px; } /* Nachname */
+    .sticky-col-2 { left: 160px; min-width: 100px; } /* Vorname */
+    .sticky-col-3 { left: 260px; min-width: 150px; } /* E-Mail */
+    .sticky-col-4 { left: 410px; min-width: 120px; } /* Stellenbez. */
+    .sticky-col-5 { left: 530px; min-width: 100px; } /* Ressort */
+    .sticky-col-6 { left: 630px; min-width: 60px; } /* CVD */
+    .sticky-col-7 { left: 690px; min-width: 120px; } /* Qualifikationen */
+    .sticky-col-8 { left: 810px; min-width: 100px; } /* Teams */
+    .sticky-col-9 { left: 910px; min-width: 150px; } /* Notizen */
+    .sticky-col-10 { left: 1060px; min-width: 100px; } /* Wochenstunden */
+    .sticky-col-11 { left: 1160px; min-width: 100px; } /* MonatsSumme */
+    .sticky-col-12 { left: 1260px; min-width: 100px; } /* Delta */
+
+
+    /* Die sticky-cols in der zweiten Header-Reihe müssen auch ihren Platz halten */
+    .mitarbeiter-kalender thead tr:nth-child(2) .sticky-col {
+        background-color: #f2f2f2; /* Gleicher Hintergrund wie oben */
+        z-index: 2;
+        /* Die left-Werte sind die gleichen wie in der ersten Reihe */
+    }
+
+    /* Für leere Zellen einen Bindestrich anzeigen */
+    td[data-label]:empty::before,
+    td:empty:not([data-label])::before { /* Auch für Zellen ohne data-label, die leer sind */
+        content: "-";
+        color: #aaa;
+    }
+
+    /* Filter Bereich Styling */
+    .filter-bereich {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        align-items: center;
+        flex-wrap: wrap; /* Ermöglicht Umbruch auf kleineren Bildschirmen */
+    }
+
+    .filter-bereich label {
+        font-weight: bold;
+    }
+
+    .filter-bereich select,
+    .filter-bereich input[type="text"] {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+</style>
+
+<script src="/js/schichtplan.js"></script>

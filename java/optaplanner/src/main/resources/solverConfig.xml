@@ -2,14 +2,14 @@
 <solver xmlns="https://www.optaplanner.org/xsd/solver">
 
     <solutionClass>com.ruhr24.schichter.domain.SchichtPlan</solutionClass>
-    <entityClass>com.ruhr24.schichter.domain.Zuteilung</entityClass>
+    <entityClass>com.ruhr24.schichter.domain.SchichtBlock</entityClass>
 
     <scoreDirectorFactory>
         <easyScoreCalculatorClass>com.ruhr24.schichter.solver.SimpleScoreCalculator</easyScoreCalculatorClass>
     </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>60</secondsSpentLimit>
+        <secondsSpentLimit>6000</secondsSpentLimit>
     </termination>
 
 </solver>

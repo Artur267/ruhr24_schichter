@@ -13,7 +13,8 @@ const PORT = 3000;
 const { exec } = require('child_process');
 const RULES_PATH = path.join(__dirname, 'data', 'regelwerk.json');
 const EMPLOYEE_PATH = path.join(__dirname, 'data', 'mitarbeiter.json');
-const CALENDAR_CSV_PATH = path.join(__dirname, 'results', 'output.csv');
+const CALENDAR_CSV_PATH = path.join(__dirname, 'java', 'optaplanner', 'results', 'output.csv');
+console.log(`[NODE.JS BACKEND] Konfigurierter CSV-Lesepfad: ${CALENDAR_CSV_PATH}`); // NEU
 const UPLOADS_PATH = path.join(__dirname, 'uploads');
 const SETTINGS_PATH = path.join(__dirname, 'data', 'settings.json');
 const PROMPT_PATH = path.join(__dirname, 'data', 'prompts.txt');
@@ -64,46 +65,88 @@ function saveEmployees(data) {
 
 async function parseCSV(filePath) {
     const results = [];
-    let dates = [];
+    let dates = []; // Speichert die Datum-Header (z.B. "28.04.")
+    let actualHeaders = []; // Speichert die echten Header-Namen der ersten Zeile
 
     return new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
-            .pipe(csv({ separator: ',', headers: false, ignoreEmpty: true }))
+        fs.createReadStream(filePath, { encoding: 'utf8' }) // UTF-8 Encoding hinzufügen!
+            .pipe(csv({ separator: ';', headers: false, ignoreEmpty: true })) // headers: false beibehalten
             .on('data', (row) => {
                 const rowValues = Object.values(row);
 
-                if (dates.length === 0) {
-                    dates = rowValues
-                        .slice(9)
-                        .filter((_, index) => index % 2 === 0)
-                        .map(value => String(value).trim())
-                        .filter(value => value !== '');
-                } else if (rowValues[0] !== 'NutzerID') {
+                // Erste Zeile ist der Header
+                if (results.length === 0 && rowValues[0] === 'NutzerID') { // Erkennen der Header-Zeile
+                    actualHeaders = rowValues.map(value => String(value).trim());
+
+                    // Datums-Header extrahieren
+                    // Beginne ab dem ersten Datum, z.B. "28.04. Von"
+                    const firstDateIndex = actualHeaders.findIndex(header => header.match(/^\d{2}\.\d{2}\. Von$/));
+                    if (firstDateIndex !== -1) {
+                         dates = actualHeaders
+                            .slice(firstDateIndex) // Schneide ab dem ersten Datum-Header ab
+                            .filter((_, index) => index % 2 === 0) // Nur die "Von"-Header behalten
+                            .map(value => String(value).trim().replace(' Von', '')) // " Von" entfernen, nur Datum behalten
+                            .filter(value => value !== '');
+                        // Sortiere die Daten chronologisch, falls sie nicht schon sortiert sind
+                        dates.sort((a, b) => {
+                            const [dayA, monthA] = a.split('.').map(Number);
+                            const [dayB, monthB] = b.split('.').map(Number);
+                            if (monthA !== monthB) return monthA - monthB;
+                            return dayA - dayB;
+                        });
+                    }
+                    // Diese Zeile ist der Header, also nicht als Mitarbeiter hinzufügen
+                    return;
+                }
+
+                // Datenzeilen verarbeiten
+                if (rowValues[0] !== 'NutzerID') { // Überspringe die Header-Zeile, wenn sie nicht die erste ist
                     const mitarbeiter = {
                         Arbeitszeiten: {}
                     };
 
-                    mitarbeiter.NutzerID = String(rowValues[0]).trim() || '';
-                    mitarbeiter.Nachname = String(rowValues[1]).trim() || '';
-                    mitarbeiter.Vorname = String(rowValues[2]).trim() || '';
-                    mitarbeiter.Ressort = String(rowValues[3]).trim() || '';
-                    mitarbeiter.CVD = String(rowValues[4]).trim() || '';
-                    mitarbeiter.Notizen = String(rowValues[5]).trim() || '';
-                    mitarbeiter.Wochenstunden = String(rowValues[6]).trim() || '';
-                    mitarbeiter.MonatsSumme = String(rowValues[7]).trim() || '';
-                    mitarbeiter.Delta = String(rowValues[8]).trim() || '';
+                    // Annahme: Die Reihenfolge der Daten in rowValues entspricht den Spalten in actualHeaders
+                    // ACHTUNG: Die Indizes MÜSSEN zu deiner CSV-Datei passen!
+                    // Wenn die CSV-Datei 1:1 die gewünschte Struktur hat:
+                    mitarbeiter.id = String(rowValues[actualHeaders.indexOf('NutzerID')]).trim() || ''; // Oder rowValues[0] wenn "NutzerID" immer an erster Stelle steht
+                    mitarbeiter.nachname = String(rowValues[actualHeaders.indexOf('Nachname')]).trim() || '';
+                    mitarbeiter.vorname = String(rowValues[actualHeaders.indexOf('Vorname')]).trim() || '';
+                    mitarbeiter.email = String(rowValues[actualHeaders.indexOf('E-Mail')]).trim() || ''; // Richtig!
+                    mitarbeiter.stellenbezeichnung = String(rowValues[actualHeaders.indexOf('Stellenbezeichnung')]).trim() || ''; // Richtig!
+                    mitarbeiter.ressort = String(rowValues[actualHeaders.indexOf('Ressort')]).trim() || ''; // Richtig!
+                    mitarbeiter.cvd = (String(rowValues[actualHeaders.indexOf('CVD')]).trim().toLowerCase() === 'true' || String(rowValues[actualHeaders.indexOf('CVD')]).trim().toLowerCase() === 'ja'); // Richtig, als Boolean!
+                    // Rollen und Qualifikationen sowie Teams werden als kommaseparierter String erwartet
+                    mitarbeiter.rollenUndQualifikationen = String(rowValues[actualHeaders.indexOf('Qualifikationen')]).trim().split(',').map(s => s.trim()).filter(s => s !== '') || []; // Richtig, als Array!
+                    mitarbeiter.teamsUndZugehoerigkeiten = String(rowValues[actualHeaders.indexOf('Teams')]).trim().split(',').map(s => s.trim()).filter(s => s !== '') || []; // Richtig, als Array!
+                    mitarbeiter.notizen = String(rowValues[actualHeaders.indexOf('Notizen')]).trim() || '';
+                    mitarbeiter.wochenstunden = parseInt(String(rowValues[actualHeaders.indexOf('Wochenstunden')]).trim(), 10) || 0; // Richtig, als Zahl!
 
-                    for (let i = 0; i < dates.length; i++) {
-                        const vonIndex = 9 + i * 2;
-                        const bisIndex = 10 + i * 2;
-                        const vonValue = rowValues[vonIndex] ? String(rowValues[vonIndex]).trim() : '';
-                        const bisValue = rowValues[bisIndex] ? String(rowValues[bisIndex]).trim() : '';
+                    // Die Felder MonatsSumme und Delta aus deinem neuen JSON-Snippet sind hier nicht aufgeführt.
+                    // Wenn sie in der CSV als separate Spalten existieren, füge sie hier hinzu:
+                    // mitarbeiter.monatsSumme = parseFloat(String(rowValues[actualHeaders.indexOf('MonatsSumme')]).replace(',', '.')).trim()) || 0;
+                    // mitarbeiter.delta = parseFloat(String(rowValues[actualHeaders.indexOf('Delta')]).replace(',', '.')).trim()) || 0;
 
-                        mitarbeiter.Arbeitszeiten[dates[i]] = {
+                    // Wenn "Wunschschichten" und "urlaubtageSet" auch in der CSV sind, füge sie hinzu
+                    mitarbeiter.wunschschichten = []; // Annahme: nicht direkt in CSV, sonst aus CSV lesen
+                    mitarbeiter.urlaubtageSet = []; // Annahme: nicht direkt in CSV, sonst aus CSV lesen
+
+
+                    // Verarbeite Arbeitszeiten basierend auf den dynamisch gefundenen Datums-Headern
+                    dates.forEach(dateKey => { // dateKey ist z.B. "28.04."
+                        const vonHeader = `${dateKey} Von`;
+                        const bisHeader = `${dateKey} Bis`;
+
+                        const vonIndex = actualHeaders.indexOf(vonHeader);
+                        const bisIndex = actualHeaders.indexOf(bisHeader);
+
+                        const vonValue = vonIndex !== -1 && rowValues[vonIndex] ? String(rowValues[vonIndex]).trim() : '';
+                        const bisValue = bisIndex !== -1 && rowValues[bisIndex] ? String(rowValues[bisIndex]).trim() : '';
+
+                        mitarbeiter.Arbeitszeiten[dateKey] = {
                             Von: vonValue,
                             Bis: bisValue
                         };
-                    }
+                    });
                     results.push(mitarbeiter);
                 }
             })
@@ -385,12 +428,18 @@ app.post("/starte-scheduler", async (req, res) => {
                 id: mitarbeiter.id,
                 nachname: mitarbeiter.nachname,
                 vorname: mitarbeiter.vorname,
-                ressort: mitarbeiter.ressort,
-                wochenstunden: parseInt(mitarbeiter.wochenstunden, 10),
-                cvd: mitarbeiter.cvd // Stelle sicher, dass dies dem Java-Backend DTO entspricht
+                email: mitarbeiter.email ?? null, // <-- Hier muss ein Komma sein, wenn danach eine weitere Eigenschaft kommt
+                stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null, // <-- Komma
+                ressort: mitarbeiter.ressort, // <-- Komma
+                wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0, // <-- Komma
+                cvd: mitarbeiter.cvd ?? false, // <-- Komma
+                notizen: mitarbeiter.notizen ?? null, // <-- Komma
+                rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [], // <-- Komma
+                teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [], // <-- Komma
+                wunschschichten: mitarbeiter.wunschschichten ?? [], // <-- Komma (falls vorhanden)
+                urlaubstageSet: mitarbeiter.urlaubtageSet ?? [] // <-- KEIN Komma hier, wenn es die letzte Eigenschaft ist!
             }))
         };
-
         console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/planen)...");
 
         // Sende die Daten an den OptaPlanner-Server (Java-Backend)

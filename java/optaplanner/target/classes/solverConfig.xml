@@ -9,15 +9,14 @@
     </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>3000</secondsSpentLimit>
+        <secondsSpentLimit>900</secondsSpentLimit>
     </termination>
 
     <constructionHeuristic>
-        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
+        <constructionHeuristicType>FIRST_FIT</constructionHeuristicType>
     </constructionHeuristic>
 
     <localSearch>
-        <localSearchType>LATE_ACCEPTANCE</localSearchType>
         <acceptor>
             <lateAcceptanceSize>100</lateAcceptanceSize>
         </acceptor>

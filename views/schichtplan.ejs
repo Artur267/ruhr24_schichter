@@ -81,8 +81,6 @@
                         <td class="sticky-col sticky-col-11"><%= mitarbeiter.monatsSumme || '' %></td>
                         <td class="sticky-col sticky-col-12"><%= mitarbeiter.delta || '' %></td>
                         <%
-                        // Iteriere hier über das 'dates'-Array, NICHT über Object.keys(mitarbeiter.Arbeitszeiten)
-                        // Das stellt sicher, dass die Reihenfolge der Spalten immer mit dem Header übereinstimmt.
                         if (dates && dates.length > 0) {
                             dates.forEach(function(datum) {
                                 const zeiten = mitarbeiter.Arbeitszeiten[datum];
@@ -107,12 +105,11 @@
 </div>
 
 <style>
-    /* Allgemeine Tabellenstile */
     .table-container {
-        overflow-x: auto; /* Ermöglicht horizontales Scrollen */
+        overflow-x: auto;
         width: 100%;
-        margin-top: 20px;
-        position: relative; /* Wichtig für sticky Positioning */
+        margin-top: 10rem;
+        position: absolute;
     }
 
     .mitarbeiter-kalender {
@@ -207,6 +204,7 @@
         border: 1px solid #ccc;
         border-radius: 4px;
         font-size: 0.9em;
+        width: 200px;
     }
 </style>
 

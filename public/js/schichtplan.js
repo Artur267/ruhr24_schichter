@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mitarbeiterKalenderTbody = document.getElementById('mitarbeiterKalenderTbody');
 
     // Daten vom data-Attribut des tbody holen
-    // ACHTUNG: Hier sollte das JSON bereits korrekt sein, wenn das Backend angepasst wurde
     const initialMitarbeiterDaten = JSON.parse(mitarbeiterKalenderTbody.dataset.mitarbeiterDaten || '[]');
     let aktuelleMitarbeiterDaten = [...initialMitarbeiterDaten]; // Kopie für Filterung
 
@@ -17,8 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
             mitarbeiterDaten.forEach(mitarbeiter => {
                 const row = mitarbeiterKalenderTbody.insertRow();
 
-                // Diese Zuordnungen basieren auf den KORRIGIERTEN JSON-SCHLÜSSELN,
-                // die dein Backend jetzt hoffentlich liefert.
                 row.insertCell().textContent = mitarbeiter.id || ''; // von NutzerID zu id
                 row.insertCell().textContent = mitarbeiter.nachname || ''; // von Nachname zu nachname
                 row.insertCell().textContent = mitarbeiter.vorname || ''; // von Vorname zu vorname
@@ -26,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.insertCell().textContent = mitarbeiter.stellenbezeichnung || ''; // Jetzt "stellenbezeichnung"
                 row.insertCell().textContent = mitarbeiter.ressort || ''; // Jetzt "ressort"
                 row.insertCell().textContent = mitarbeiter.cvd ? "Ja" : "Nein"; // Jetzt "cvd" (Boolean)
-                // join() um Array als String anzuzeigen
                 row.insertCell().textContent = (mitarbeiter.rollenUndQualifikationen || []).join(', ') || ''; // Jetzt "rollenUndQualifikationen" (Array)
                 row.insertCell().textContent = (mitarbeiter.teamsUndZugehoerigkeiten || []).join(', ') || ''; // Jetzt "teamsUndZugehoerigkeiten" (Array)
                 row.insertCell().textContent = mitarbeiter.notizen || ''; // Jetzt "notizen"
@@ -53,8 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const row = mitarbeiterKalenderTbody.insertRow();
             const cell = row.insertCell();
-            // Die Anzahl der festen Spalten muss mit der im EJS übereinstimmen.
-            // Zähle hier 12 "feste" Spalten (id bis delta)
             const fixedCols = 12; // id, nachname, vorname, email, stellenbezeichnung, ressort, cvd, rollenUndQualifikationen, teamsUndZugehoerigkeiten, notizen, wochenstunden, monatsSumme, delta
             // Schätzt die Spaltenanzahl basierend auf dem ersten Mitarbeiter, falls vorhanden
             const totalCols = fixedCols + (Object.keys(mitarbeiterDaten[0]?.Arbeitszeiten || {}).length * 2);
@@ -70,14 +64,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const searchTerm = mitarbeiterSuche.value.toLowerCase();
 
             const gefilterteDaten = initialMitarbeiterDaten.filter(mitarbeiter => {
-                // ANPASSUNG DER FILTERLOGIK AN DIE NEUEN, KORRIGIERTEN JSON-SCHLÜSSEL
                 const ressortMatch = !selectedRessort || mitarbeiter.ressort === selectedRessort;
                 let cvdMatch = true;
 
-                if (selectedCvd === 'true') { // Filter auf "Ja"
-                    cvdMatch = mitarbeiter.cvd === true; // Jetzt ein echtes Boolean
-                } else if (selectedCvd === 'false') { // Filter auf "Nein"
-                    cvdMatch = mitarbeiter.cvd === false; // Jetzt ein echtes Boolean
+                if (selectedCvd === 'true') {
+                    cvdMatch = mitarbeiter.cvd === true;
+                } else if (selectedCvd === 'false') {
+                    cvdMatch = mitarbeiter.cvd === false; 
                 }
 
                 const sucheMatch = !searchTerm ||
@@ -98,10 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mitarbeiterSuche.addEventListener('input', filterMitarbeiter);
 
     // Dynamisches Füllen des Ressort-Filters beim Laden der Seite
-    // Nutzen den korrigierten Schlüssel 'ressort'
     const alleRessorts = [...new Set(initialMitarbeiterDaten.map(m => m.ressort))].sort();
     alleRessorts.forEach(ressort => {
-        if (ressort) { // Nur hinzufügen, wenn der Ressort-Wert nicht leer ist
+        if (ressort) { 
             const option = document.createElement('option');
             option.value = ressort;
             option.textContent = ressort;
@@ -109,6 +101,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initiales Anzeigen aller Daten
     updateTable(initialMitarbeiterDaten);
 });

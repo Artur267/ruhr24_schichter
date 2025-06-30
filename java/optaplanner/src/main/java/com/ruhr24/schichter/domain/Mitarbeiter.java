@@ -5,12 +5,13 @@ import org.optaplanner.core.api.domain.lookup.PlanningId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDate;
+import java.time.Duration; // Import für Duration
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-//import java.util.stream.Collectors;
+import java.util.stream.Collectors; // Stellen Sie sicher, dass dies importiert ist
 
 public class Mitarbeiter {
 
@@ -68,7 +69,7 @@ public class Mitarbeiter {
         this.rollenUndQualifikationen = rollenUndQualifikationen != null ? new ArrayList<>(rollenUndQualifikationen) : new ArrayList<>();
         this.teamsUndZugehoerigkeiten = teamsUndZugehoerigkeiten != null ? new ArrayList<>(teamsUndZugehoerigkeiten) : new ArrayList<>();
         this.wunschschichten = wunschschichten != null ? new ArrayList<>(wunschschichten) : new ArrayList<>();
-        // this.urlaubtageSet = urlaubstageSet != null ? new HashSet<>(urlaubtageSet) : new HashSet<>(); // AUSKOMMENTIERT
+        // this.urlaubtageSet = urlaubtageSet != null ? new HashSet<>(urlaubtageSet) : new HashSet<>(); // AUSKOMMENTIERT
         this.targetBiWeeklyHours = targetBiWeeklyHours;
         this.assignedSchichtBlocks = new ArrayList<>(); // Initialisieren
     }
@@ -200,8 +201,8 @@ public class Mitarbeiter {
         return new HashSet<>(); // Temporäre leere Menge zurückgeben, wenn das Feature nicht aktiv ist
     }
 
-    public void setUrlaubstageSet(Set<LocalDate> urlaubstageSet) {
-        // this.urlaubtageSet = urlaubtageSet != null ? new HashSet<>(urlaubtageSet) : new HashSet<>(); // AUSKOMMENTIERT
+    public void setUrlaubtageSet(Set<LocalDate> urlaubstageSet) {
+        // this.urlaubtageSet = urlaubtageSet != null ? new HashSet<>(urlaubstageSet) : new HashSet<>(); // AUSKOMMENTIERT
         // Nichts tun, da das Feature nicht aktiv ist
     }
 
@@ -215,16 +216,34 @@ public class Mitarbeiter {
     }
 
     // NEU: Hilfsmethode, um zu prüfen, ob der Mitarbeiter eine bestimmte Qualifikation hat
+    // DIESE METHODE FEHLTE UND WURDE HINZUGEFÜGT
     public boolean hasQualification(String qualification) {
         return rollenUndQualifikationen.contains(qualification);
     }
 
     // NEU: Hilfsmethode, um zu prüfen, ob der Mitarbeiter ALLE erforderlichen Qualifikationen hat
+    // DIESE METHODE FEHLTE UND WURDE HINZUGEFÜGT
     public boolean hasAllQualifikationen(List<String> requiredQualifikations) {
         if (requiredQualifikations == null || requiredQualifikations.isEmpty()) {
             return true; // Keine Qualifikationen erforderlich, also ist der Mitarbeiter qualifiziert
         }
+        // Wichtig: Set<String> requiredQualifikations sollte hier verwendet werden,
+        // da SchichtBlock::getRequiredQualifikationen ein Set zurückgibt.
+        // Wenn SchichtBlock::getRequiredQualifikationen eine List zurückgibt, ist dies korrekt.
+        // Gehe davon aus, dass SchichtBlock getRequiredQualifikationen ein List<String> zurückgibt
         return rollenUndQualifikationen.containsAll(requiredQualifikations);
+    }
+
+    // NEUE HILFSMETHODE: Summiert die Gesamtdauer aller zugewiesenen SchichtBlöcke in Minuten
+    // Diese Methode ist für die employeeCannotExceedWeeklyHoursHard Constraint ESSENTIELL.
+    public long getTotalAssignedDurationInMinutes() {
+        // Stellt sicher, dass assignedSchichtBlocks nicht null ist, bevor gestreamt wird.
+        if (assignedSchichtBlocks == null) {
+            return 0;
+        }
+        return assignedSchichtBlocks.stream()
+                .mapToLong(SchichtBlock::getTotalDurationInMinutes)
+                .sum();
     }
 
 

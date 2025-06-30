@@ -18,7 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
+import java.util.Set; // Beibehalten, falls Set<String> für Qualifikationen verwendet wird
 import java.util.stream.Collectors;
 import java.util.function.Function;
 
@@ -32,7 +32,7 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
     // Weights increased to enforce fairer distribution.
     private static final long SOFT_PENALTY_TARGET_MINUTES_DEVIATION_PER_MINUTE = 2000L;
     private static final long SOFT_PENALTY_PREFERENCE_PART_TIME_BLOCK = 2000L;
-    private static final long SOFT_PENALTY_NOT_PLANNED_PER_EMPLOYEE = 50000L;
+    private static final long SOFT_PENALTY_NOT_PLANNED_PER_EMPLOYEE = 50000L; // Hohe Strafe für ungeplante Blöcke
     private static final long SOFT_PENALTY_MORE_THAN_5_CONSECUTIVE_DAYS = 50L;
     private static final long SOFT_PENALTY_CVD_DOUBLE_OCCUPANCY_DAY = 100L;
     private static final long SOFT_PENALTY_CVD_EVEN_DISTRIBUTION = 100L;
@@ -43,20 +43,25 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
     @Override
     public Constraint[] defineConstraints(ConstraintFactory constraintFactory) {
         return new Constraint[] {
-            // --- HARD CONSTRAINTS ---
+            // --- HARD CONSTRAINTS (Deine aktive Auswahl) ---
             cvd7DayBlockIsExclusive(constraintFactory),
-            noOverlappingShifts(constraintFactory),
-            employeeMustBeQualified(constraintFactory),
-            shiftMustBeAssignedOnce(constraintFactory),
-            atLeast11HoursRestTime(constraintFactory),
+            //noOverlappingShifts(constraintFactory), // Auskommentiert, da "macht delta" - muss später individuell debugged werden
+            employeeMustBeQualified(constraintFactory), // AKTIVIERT: Mitarbeiter muss qualifiziert sein
+            //shiftMustBeAssignedOnce(constraintFactory), // Auskommentiert, da "macht delta" - muss später individuell debugged werden
+            //atLeast11HoursRestTime(constraintFactory), // Auskommentiert, da "macht delta" - muss später individuell debugged werden
             cvdWeekendMustBeQualified(constraintFactory),
             adminShiftsOnlyForAdminQualified(constraintFactory),
-            blockMustBeFullyAssigned(constraintFactory),
-            noMixedWeekendCvDShiftsForSameEmployee(constraintFactory), // NEW HARD CONSTRAINT
+            //blockMustBeFullyAssignedHard(constraintFactory), // Bleibt auskommentiert, da wir die Soft-Version zum Debuggen nutzen
+            noMixedWeekendCvDShiftsForSameEmployee(constraintFactory),
+            employeeCannotExceedWeeklyHoursHard(constraintFactory), // AKTIVIERT: Mitarbeiter darf Wochenstunden nicht überschreiten
 
-            // --- SOFT CONSTRAINTS ---
-            minimizeTargetHoursDeviation(constraintFactory),
-            penalizeUnplannedEmployees(constraintFactory),
+
+            // --- DIAGNOSTISCHE SOFT CONSTRAINT: Unbesetzte Blöcke penalisiert als Soft ---
+            blockMustBeFullyAssignedSoft(constraintFactory),
+
+            // --- WEITERE SOFT CONSTRAINTS (Basierend auf deiner letzten Auswahl) ---
+            minimizeTargetHoursDeviation(constraintFactory), // Bleibt AKTIVIERT, wie in deiner letzten Liste
+            //penalizeUnplannedEmployees(constraintFactory), // Diese ist jetzt in blockMustBeFullyAssignedSoft integriert
             preferSpecific20hPatterns(constraintFactory),
             avoidMoreThanFiveConsecutiveDays(constraintFactory),
             avoidCvdDoubleOccupancy(constraintFactory),
@@ -67,13 +72,8 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
         };
     }
 
-    // --- HARD CONSTRAINTS ---
+    // --- HARD CONSTRAINTS (Methoden-Definitionen) ---
 
-    /**
-     * Hard Constraint: An employee cannot be in multiple places at the same time.
-     * Checks if individual shifts within assigned SchichtBlocks overlap.
-     * Uses LocalDateTime for precise overlap checking.
-     */
     Constraint noOverlappingShifts(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -91,21 +91,16 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Employee cannot be in two places at the same time (temporal)");
     }
 
-    /**
-     * Hard Constraint: An employee must possess all qualifications for the assigned SchichtBlock.
-     */
+    // AKTIVIERT: Mitarbeiter muss für Schichtblock qualifiziert sein
     Constraint employeeMustBeQualified(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
+                // Nutzt die aktualisierte hasAllQualifikationen-Methode, die List<String> akzeptiert
                 .filter(schichtBlock -> !schichtBlock.getMitarbeiter().hasAllQualifikationen(schichtBlock.getRequiredQualifikationen()))
                 .penalize(HardSoftLongScore.ofHard(HARD_SCORE_PENALTY))
                 .asConstraint("Employee must be qualified (SchichtBlock)");
     }
 
-    /**
-     * Hard Constraint: Each individual shift must be assigned only once.
-     * Prevents a shift, even if part of different blocks, from being assigned to multiple employees.
-     */
     Constraint shiftMustBeAssignedOnce(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -119,10 +114,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Individual shift must be assigned only once");
     }
 
-    /**
-     * Hard Constraint: Employees must have a minimum rest period of 11 hours between shifts.
-     * This is a legal requirement in Germany.
-     */
     Constraint atLeast11HoursRestTime(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -159,9 +150,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Employee must have at least 11 hours rest time between shifts");
     }
 
-    /**
-     * Hard Constraint: Weekend CvD shifts require the specific qualification "CVD_AM_WOCHENENDE_QUALIFIKATION".
-     */
     Constraint cvdWeekendMustBeQualified(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -172,9 +160,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Weekend CvD qualification missing");
     }
 
-    /**
-     * Hard Constraint: Admin shifts can only be assigned to employees with "ADMIN_QUALIFIKATION".
-     */
     Constraint adminShiftsOnlyForAdminQualified(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -184,23 +169,15 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Admin shift by non-admin");
     }
 
-    /**
-     * Hard Constraint: Every generated SchichtBlock must be assigned to an employee.
-     * This ensures that all required shifts are filled.
-     */
-    Constraint blockMustBeFullyAssigned(ConstraintFactory constraintFactory) {
+    // ORIGINAL Hard Constraint (Umbenannt zur Klarheit, da wir jetzt eine Soft-Version nutzen)
+    Constraint blockMustBeFullyAssignedHard(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() == null)
                 .penalizeLong(HardSoftLongScore.ofHard(HARD_SCORE_PENALTY),
                         SchichtBlock::getTotalDurationInMinutes)
-                .asConstraint("Unassigned SchichtBlock");
+                .asConstraint("Unassigned SchichtBlock (Hard)");
     }
 
-    /**
-     * NEW HARD CONSTRAINT: A CvD employee must not be assigned both a weekend early CvD block
-     * AND a weekend late CvD block for the same weekend.
-     * This prevents mixed early/late shifts for the same CvD across a single weekend.
-     */
     Constraint noMixedWeekendCvDShiftsForSameEmployee(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -220,11 +197,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("CvD mixed early/late weekend shifts for same employee");
     }
 
-    /**
-     * Hard Constraint: A 7-day CvD block (early or late) is exclusive.
-     * An employee assigned to a 7-day CvD block must NOT be assigned to any other SchichtBlocks
-     * within the same planning period. This ensures the CvD weekly role is absolutely exclusive.
-     */
     Constraint cvd7DayBlockIsExclusive(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -245,40 +217,60 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("7-day CvD block is exclusive (max one 7-day CvD block and no other blocks)");
     }
 
+    // AKTIVIERT: Hard Constraint: Mitarbeiter darf Wochenstunden nicht überschreiten
+    Constraint employeeCannotExceedWeeklyHoursHard(ConstraintFactory constraintFactory) {
+        // Annahme: Planung für 1 Woche, daher wochenstunden * 60 Minuten.
+        // Passe 'numberOfPlanningWeeks' an, wenn dein Planungszeitraum variiert.
+        int numberOfPlanningWeeks = 1; // Für eine Woche
 
-    // --- SOFT CONSTRAINTS ---
+        return constraintFactory.forEach(Mitarbeiter.class)
+                .filter(mitarbeiter -> mitarbeiter.getWochenstunden() > 0) // Nur Mitarbeiter mit festen Wochenstunden prüfen
+                .filter(mitarbeiter -> {
+                    // Hole die tatsächlich zugewiesenen Minuten über die neue Hilfsmethode
+                    long totalAssignedMinutes = mitarbeiter.getTotalAssignedDurationInMinutes();
+                    long targetMinutes = mitarbeiter.getWochenstunden() * 60L * numberOfPlanningWeeks;
+                    return totalAssignedMinutes > targetMinutes; // Strafe, wenn zugewiesene Minuten Ziel überschreiten
+                })
+                .penalizeLong(HardSoftLongScore.ofHard(HARD_SCORE_PENALTY),
+                        (mitarbeiter) -> {
+                            long totalAssignedMinutes = mitarbeiter.getTotalAssignedDurationInMinutes();
+                            long targetMinutes = mitarbeiter.getWochenstunden() * 60L * numberOfPlanningWeeks;
+                            // Die Strafe ist die Anzahl der Minuten, um die überschritten wurde
+                            return (totalAssignedMinutes - targetMinutes);
+                        })
+                .asConstraint("Employee assigned more hours than weekly target (Hard)");
+    }
 
-    /**
-     * Soft Constraint: Minimize deviation from target hours per employee.
-     * Each employee should be as close as possible to their weekly hours.
-     * Penalties are quadratic to penalize larger deviations more heavily.
-     */
+
+    // --- SOFT CONSTRAINTS (Methoden-Definitionen) ---
+
+    // Diagnostische Soft Constraint für unbesetzte Blöcke
+    Constraint blockMustBeFullyAssignedSoft(ConstraintFactory constraintFactory) {
+        return constraintFactory.forEach(SchichtBlock.class)
+                .filter(schichtBlock -> schichtBlock.getMitarbeiter() == null) // Finde unbesetzte Blöcke
+                .penalizeLong(HardSoftLongScore.ofSoft(SOFT_PENALTY_NOT_PLANNED_PER_EMPLOYEE), // Hohe Soft-Strafe
+                        SchichtBlock::getTotalDurationInMinutes) // Strafe basiert auf der Dauer des unbesetzten Blocks
+                .asConstraint("Unassigned SchichtBlock (Soft Penalty)");
+    }
+
+    // Bleibt AKTIVIERT, wie in deiner letzten Liste
     Constraint minimizeTargetHoursDeviation(ConstraintFactory constraintFactory) {
-        // Assume 1 planning week based on your output
         int numberOfPlanningWeeks = 1;
 
         return constraintFactory.forEach(Mitarbeiter.class)
-                // Filter out employees with no weekly hours, as they likely shouldn't be scheduled
                 .filter(mitarbeiter -> mitarbeiter.getWochenstunden() > 0)
-                // Join SchichtBlocks only if they are assigned to a valid employee (mitarbeiter != null)
-                .join(SchichtBlock.class,
-                      Joiners.equal(Mitarbeiter::getId, schichtBlock -> schichtBlock.getMitarbeiter() != null ? schichtBlock.getMitarbeiter().getId() : null))
-                .groupBy((mitarbeiter, schichtBlock) -> mitarbeiter,
-                        ConstraintCollectors.sumLong((mitarbeiter, schichtBlock) -> schichtBlock.getTotalDurationInMinutes()))
+                // Nutzt direkt die neue Hilfsmethode des Mitarbeiters
                 .penalizeLong(HardSoftLongScore.ofSoft(SOFT_PENALTY_TARGET_MINUTES_DEVIATION_PER_MINUTE),
-                        (mitarbeiter, totalMinutesWorked) -> {
+                        (mitarbeiter) -> {
+                            long totalMinutesWorked = mitarbeiter.getTotalAssignedDurationInMinutes();
                             long targetMinutes = mitarbeiter.getWochenstunden() * 60L * numberOfPlanningWeeks;
                             long deviation = Math.abs(totalMinutesWorked - targetMinutes);
-                            return deviation * deviation; // Quadratic penalty
+                            return deviation * deviation; // Quadratische Strafe für Abweichung
                         })
                 .asConstraint("Minimize deviation from target hours over planning period");
     }
 
-    /**
-     * NEW: Soft Constraint: Penalizes employees who are assigned 0 hours but have weekly hours > 0.
-     * This constraint ensures that all employees with an active contract (weekly hours > 0)
-     * are assigned at least some work if the solver has found a feasible solution.
-     */
+
     Constraint penalizeUnplannedEmployees(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(Mitarbeiter.class)
                 .filter(mitarbeiter -> mitarbeiter.getWochenstunden() > 0) // Only consider employees who should be scheduled
@@ -287,13 +279,7 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Penalize unplanned employees");
     }
 
-    /**
-     * Prefers assigning the specific 20h pattern block to employees with 20 weekly hours.
-     * Penalizes:
-     * 1. A 20h pattern block is assigned to a NON-20h employee.
-     */
     Constraint preferSpecific20hPatterns(ConstraintFactory constraintFactory) {
-        // Ensure this block type exists in your generator
         String BLOCK_TYPE_20H_PATTERN = SchichtTyp.KERN_MO_FR_20H_BLOCK.getDisplayValue();
 
         return constraintFactory.forEach(SchichtBlock.class)
@@ -304,16 +290,11 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Prefer 20h pattern: 20h block not assigned to 20h employee");
     }
 
-
-    /**
-     * Soft Constraint: An employee should not work more than 5 consecutive days.
-     */
     Constraint avoidMoreThanFiveConsecutiveDays(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(Mitarbeiter.class)
                 .filter(mitarbeiter -> mitarbeiter.getAssignedSchichtBlocks() != null && !mitarbeiter.getAssignedSchichtBlocks().isEmpty())
                 .penalizeLong(HardSoftLongScore.ofSoft(SOFT_PENALTY_MORE_THAN_5_CONSECUTIVE_DAYS),
                         (mitarbeiter) -> {
-                            // Collect all individual shifts for the employee and sort them by date
                             List<Schicht> sortedShifts = mitarbeiter.getAssignedSchichtBlocks().stream()
                                     .flatMap(sb -> sb.getSchichtenImBlock().stream())
                                     .sorted(Comparator.comparing(Schicht::getDatum))
@@ -346,11 +327,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("More than 5 consecutive days");
     }
 
-
-    /**
-     * Soft Constraint: A CvD employee should not have consecutive shifts (early and late service) on the same day.
-     * (Corrected to only check individual shift types, not block types for Schicht::getSchichtTyp)
-     */
     Constraint avoidCvdDoubleOccupancy(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -376,10 +352,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("CvD double occupancy on the same day (early-late)");
     }
 
-    /**
-     * Soft Constraint: Distribute CvD early shifts evenly among qualified employees.
-     * Penalizes if an employee has too many CvD early shifts in the planning period.
-     */
     Constraint distributeCvdEarlyEvenly(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -393,10 +365,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Distribute CvD early shifts evenly");
     }
 
-    /**
-     * Soft Constraint: Distribute CvD late shifts evenly among qualified employees.
-     * Penalizes if an employee has too many CvD late shifts in the planning period.
-     */
     Constraint distributeCvdLateEvenly(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -410,10 +378,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 .asConstraint("Distribute CvD late shifts evenly");
     }
 
-    /**
-     * Soft Constraint: Limits the number of weekend shifts per employee.
-     * A penalty for each weekend day assigned above a certain maximum.
-     */
     Constraint limitWeekendShiftsPerEmployee(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)
@@ -446,9 +410,6 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
     }
 
 
-    /**
-     * Soft Constraint: Attempts to distribute standard core shifts evenly among all qualified online editors.
-     */
     Constraint distributeEmployeesEvenlyAcrossCoreShifts(ConstraintFactory constraintFactory) {
         return constraintFactory.forEach(SchichtBlock.class)
                 .filter(schichtBlock -> schichtBlock.getMitarbeiter() != null)

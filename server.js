@@ -22,9 +22,9 @@ const PROMPT_PATH = path.join(__dirname, 'data', 'prompts.txt');
 app.use(expressLayouts);
 app.set('layout', 'layout');
 app.set('view engine', 'ejs');
-app.use(express.json());
+app.use(express.json({limit: '50mb'})); // Erhöht das Limit für JSON-Daten
 app.use(express.static('public'));
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' })); // Erhöht das Limit für URL-kodierte Daten
 
 // Multer Konfiguration
 const storage = multer.diskStorage({
@@ -224,11 +224,11 @@ app.get('/richtlinien', (req, res) => {
     });
 });
 
-app.get('/get-planungs-ergebnis/:problemId', async (req, res) => {
+app.get('/planungs-ergebnis/:problemId', async (req, res) => {
     const problemId = req.params.problemId;
     try {
-        console.log(`[NODE.JS PROXY] Empfange Anfrage für /get-planungs-ergebnis/${problemId}.`);
-        const javaBackendResponse = await fetch(`http://localhost:8080/api/planen/${problemId}`); // Stelle sicher, dass die URL korrekt ist
+        console.log(`[NODE.JS PROXY] Empfange Anfrage für /planungs-ergebnis/${problemId}.`);
+        const javaBackendResponse = await fetch(`http://localhost:8080/api/planungs-ergebnis/${problemId}`); // Stelle sicher, dass die URL korrekt ist
 
         // Den Status und den Body des Java-Backends direkt an das Frontend weiterleiten
         // Hier sollte Java JSON zurückgeben (entweder 200 OK mit Lösung oder 202 Accepted mit null Body)
@@ -246,7 +246,7 @@ app.get('/get-planungs-ergebnis/:problemId', async (req, res) => {
             res.status(javaBackendResponse.status).send(errorBody); // Leite den Fehler weiter
         }
     } catch (error) {
-        console.error(`[NODE.JS PROXY] Interner Serverfehler im /get-planungs-ergebnis/${problemId} Endpunkt:`, error);
+        console.error(`[NODE.JS PROXY] Interner Serverfehler im /planungs-ergebnis/${problemId} Endpunkt:`, error);
         res.status(500).json({ error: 'Interner Serverfehler beim Abrufen des Planungsergebnisses.' });
     }
 });
@@ -338,6 +338,29 @@ app.post('/mitarbeiter', (req, res) => {
     }
 });
 
+app.post('/save-schichtplan-csv', async (req, res) => {
+    const solution = req.body; // Die gesamte SchichtPlan-Lösung wird im Body erwartet
+
+    if (!solution) {
+        console.error("[NODE.JS PROXY] Fehler: Keine Lösung im Request Body für CSV-Speicherung erhalten.");
+        return res.status(400).json({ error: "Keine Schichtplan-Lösung zum Speichern erhalten." });
+    }
+
+    try {
+        // Die generateSchichtplanCSV-Funktion muss auch in dieser server.js-Datei definiert sein.
+        // Siehe die vollständige server.js-Datei, die ich in früheren Antworten gesendet habe.
+        const csvString = generateSchichtplanCSV(solution); 
+
+        // Schreibe die CSV-Daten in die Datei
+        await fsPromises.writeFile(CALENDAR_CSV_PATH, csvString, 'utf8');
+        console.log(`[NODE.JS PROXY] Schichtplan-Lösung erfolgreich als CSV gespeichert unter: ${CALENDAR_CSV_PATH}`);
+        res.status(200).json({ message: "Schichtplan erfolgreich als CSV gespeichert." });
+    } catch (error) {
+        console.error("[NODE.JS PROXY] Fehler beim Speichern der Schichtplan-Lösung als CSV:", error);
+        res.status(500).json({ error: `Fehler beim Speichern der CSV: ${error.message}` });
+    }
+});
+
 app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) => {
     const nutzerId = req.params.nutzerId;
     const arbeitszeiten = req.body;
@@ -386,6 +409,87 @@ app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) 
     });
 });
 
+function generateSchichtplanCSV(solution) {
+    if (!solution || !solution.mitarbeiterList || !Array.isArray(solution.mitarbeiterList) || !solution.schichtBlockList || !Array.isArray(solution.schichtBlockList)) {
+        console.error("[CSV_GENERATOR] Ungültige Lösung für CSV-Export: Mitarbeiter- oder Schichtblock-Liste fehlt.", solution);
+        return "";
+    }
+
+    const allDates = new Set();
+    solution.schichtBlockList.forEach(block => {
+        if (block.schichtenImBlock && Array.isArray(block.schichtenImBlock)) {
+            block.schichtenImBlock.forEach(schicht => {
+                if (schicht.datum) {
+                    allDates.add(schicht.datum); // Datum im Format YYYY-MM-DD
+                }
+            });
+        }
+    });
+
+    const sortedDates = Array.from(allDates).sort();
+
+    let csvHeaders = [
+        "NutzerID", "Nachname", "Vorname", "E-Mail", "Stellenbezeichnung",
+        "Ressort", "CVD", "Qualifikationen", "Teams", "Notizen",
+        "Wochenstunden", "MonatsSumme", "Delta"
+    ];
+
+    sortedDates.forEach(date => {
+        const [year, month, day] = date.split('-');
+        const displayDate = `${day}.${month}.`; // DD.MM.
+        csvHeaders.push(`${displayDate} Von`);
+        csvHeaders.push(`${displayDate} Bis`);
+    });
+
+    let csvContent = csvHeaders.join(";") + "\n";
+
+    solution.mitarbeiterList.forEach(mitarbeiter => {
+        const rowData = [
+            `"${mitarbeiter.id || ''}"`,
+            `"${mitarbeiter.nachname || ''}"`,
+            `"${mitarbeiter.vorname || ''}"`,
+            `"${mitarbeiter.email || ''}"`,
+            `"${mitarbeiter.stellenbezeichnung || ''}"`,
+            `"${mitarbeiter.ressort || ''}"`,
+            `"${mitarbeiter.cvd ? 'true' : 'false'}"`,
+            `"${(mitarbeiter.rollenUndQualifikationen || []).join(', ').replace(/"/g, '""')}"`,
+            `"${(mitarbeiter.teamsUndZugehoerigkeiten || []).join(', ').replace(/"/g, '""')}"`,
+            `"${(mitarbeiter.notizen || '').replace(/"/g, '""')}"`,
+            `"${mitarbeiter.wochenstunden != null ? mitarbeiter.wochenstunden : ''}"`,
+            `"0,00"`, // MonatsSumme (Platzhalter)
+            `"0,00"`  // Delta (Platzhalter)
+        ];
+
+        const assignedShiftsByDate = new Map();
+        solution.schichtBlockList.forEach(block => {
+            if (block.mitarbeiter && block.mitarbeiter.id === mitarbeiter.id && block.schichtenImBlock && Array.isArray(block.schichtenImBlock)) {
+                block.schichtenImBlock.forEach(schicht => {
+                    if (schicht.datum) {
+                        assignedShiftsByDate.set(schicht.datum, {
+                            startZeit: schicht.startZeit || '',
+                            endZeit: schicht.endZeit || ''
+                        });
+                    }
+                });
+            }
+        });
+
+        sortedDates.forEach(date => {
+            const shift = assignedShiftsByDate.get(date);
+            if (shift) {
+                rowData.push(`"${shift.startZeit}"`);
+                rowData.push(`"${shift.endZeit}"`);
+            } else {
+                rowData.push(`""`);
+                rowData.push(`""`);
+            }
+        });
+        csvContent += rowData.join(";") + "\n";
+    });
+
+    return csvContent;
+}
+
 app.post('/richtlinie', (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Text fehlt.' });
@@ -408,18 +512,14 @@ app.post('/richtlinie', (req, res) => {
         }
     });
 });
-
 app.post("/starte-scheduler", async (req, res) => {
-    // Hole die Daten, die vom Frontend gesendet werden
     const { von, bis, ressort, mitarbeiterList } = req.body;
 
     console.log("[NODE.JS PROXY] Empfange Anfrage für /starte-scheduler.");
-    console.log("[NODE.JS PROXY] Planung angefordert für Zeitraum:", von, "bis", bis);
-    console.log("[NODE.JS PROXY] Ausgewähltes Ressort:", ressort);
-    console.log("[NODE.JS PROXY] Empfangene Mitarbeiterdaten für OptaPlanner (Anzahl):", mitarbeiterList.length);
+    console.log("[NODE.JS PROXY] Empfangene Daten (von, bis, ressort):", von, bis, ressort);
+    console.log("[NODE.JS PROXY] Anzahl Mitarbeiter:", mitarbeiterList ? mitarbeiterList.length : 0);
 
     try {
-        // Erstelle die Eingabedaten für OptaPlanner genau passend zum PlanungsanfrageDto im Java-Backend
         const planungsDaten = {
             von: von,
             bis: bis,
@@ -428,41 +528,37 @@ app.post("/starte-scheduler", async (req, res) => {
                 id: mitarbeiter.id,
                 nachname: mitarbeiter.nachname,
                 vorname: mitarbeiter.vorname,
-                email: mitarbeiter.email ?? null, // <-- Hier muss ein Komma sein, wenn danach eine weitere Eigenschaft kommt
-                stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null, // <-- Komma
-                ressort: mitarbeiter.ressort, // <-- Komma
-                wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0, // <-- Komma
-                cvd: mitarbeiter.cvd ?? false, // <-- Komma
-                notizen: mitarbeiter.notizen ?? null, // <-- Komma
-                rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [], // <-- Komma
-                teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [], // <-- Komma
-                wunschschichten: mitarbeiter.wunschschichten ?? [], // <-- Komma (falls vorhanden)
-                urlaubstageSet: mitarbeiter.urlaubtageSet ?? [] // <-- KEIN Komma hier, wenn es die letzte Eigenschaft ist!
+                email: mitarbeiter.email ?? null,
+                stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null,
+                ressort: mitarbeiter.ressort,
+                wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0,
+                cvd: mitarbeiter.cvd ?? false,
+                notizen: mitarbeiter.notizen ?? null,
+                rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [],
+                teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [],
+                wunschschichten: mitarbeiter.wunschschichten ?? [],
+                urlaubtageSet: mitarbeiter.urlaubtageSet ?? []
             }))
         };
-        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/planen)...");
+        // URL zum Java-Backend: /api/solve (POST)
+        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/solve)...");
 
-        // Sende die Daten an den OptaPlanner-Server (Java-Backend)
-        const javaBackendResponse = await axios.post('http://localhost:8080/api/planen', planungsDaten);
+        const javaBackendResponse = await axios.post('http://localhost:8080/api/solve', planungsDaten);
 
-        // Das Java-Backend antwortet jetzt mit einem 202 Accepted Status und einem TEXT-Body wie
-        // "Planung mit ID XXXXX gestartet."
-        console.log("[NODE.JS PROXY] Antwort vom Java-Backend (Status):", javaBackendResponse.status);
-        console.log("[NODE.JS PROXY] Antwort vom Java-Backend (Data):", javaBackendResponse.data); // Das ist der Text-Body
+        const { problemId, solverTimeoutMillis, message } = javaBackendResponse.data;
 
-        // Problem-ID aus dem TEXT-Body extrahieren
-        const responseText = javaBackendResponse.data; // Axios gibt den Text direkt in .data
-        const problemIdMatch = responseText.match(/Planung mit ID ([0-9a-fA-F-]+) gestartet\./);
-
-        if (!problemIdMatch || problemIdMatch.length < 2) {
-            console.error('[NODE.JS PROXY] FEHLER: Konnte Problem-ID aus Java-Backend-Antwort nicht extrahieren.');
-            return res.status(500).json({ error: 'Konnte Problem-ID vom Java-Backend nicht extrahieren.' });
+        if (!problemId) {
+            console.error('[NODE.JS PROXY] FEHLER: Keine problemId im JSON-Objekt vom Java-Backend erhalten.');
+            return res.status(500).json({ error: 'Konnte problemId vom Java-Backend nicht extrahieren.' });
         }
-        const problemId = problemIdMatch[1];
         console.log('[NODE.JS PROXY] Extrahierte Problem-ID:', problemId);
+        console.log('[NODE.JS PROXY] Extrahierter Solver Timeout (ms):', solverTimeoutMillis);
 
-        // Sende die Problem-ID als JSON an das Frontend
-        res.status(202).json({ message: "Planung erfolgreich gestartet.", problemId: problemId });
+        res.status(202).json({
+            message: message || "Planung erfolgreich gestartet.",
+            problemId: problemId,
+            solverTimeoutMillis: solverTimeoutMillis
+        });
 
     } catch (error) {
         console.error("[NODE.JS PROXY] Fehler beim Starten der OptaPlanner-Planung:", error.message);
@@ -470,7 +566,32 @@ app.post("/starte-scheduler", async (req, res) => {
             console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
             console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
             res.status(error.response.status).json({
-                error: `Fehler beim Starten der OptaPlanner-Planung: ${error.response.status} - ${error.response.data || error.message}`
+                error: `Fehler beim Starten der OptaPlanner-Planung: ${error.response.status} - ${JSON.stringify(error.response.data) || error.message}`
+            });
+        } else {
+            res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
+        }
+    }
+});
+
+// Endpunkt zum Abrufen des Planungsstatus oder Ergebnisses
+// Dies ist der Endpunkt, den das Frontend aufruft, um den Fortschritt/Ergebnis zu erhalten
+app.get("/planungs-ergebnis/:problemId", async (req, res) => { // <--- Dieser Endpunkt ist entscheidend!
+    const problemId = req.params.problemId;
+    // HIER KORRIGIERTER LOG, um die korrekte empfangene URL anzuzeigen
+    console.log(`[NODE.JS PROXY] Empfange Anfrage für /planungs-ergebnis/${problemId}.`);
+
+    try {
+        // Interne Weiterleitung an das Java-Backend: /api/planungs-ergebnis/{problemId} (GET)
+        const javaBackendResponse = await axios.get(`http://localhost:8080/api/planungs-ergebnis/${problemId}`);
+        res.status(javaBackendResponse.status).json(javaBackendResponse.data);
+    } catch (error) {
+        console.error(`[NODE.JS PROXY] Fehler beim Abrufen des Planungsergebnisses für ID ${problemId}:`, error.message);
+        if (axios.isAxiosError(error) && error.response) {
+            console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
+            console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
+            res.status(error.response.status).json({
+                error: `Fehler beim Abrufen des Planungsergebnisses: ${error.response.status} - ${JSON.stringify(error.response.data) || error.message}`
             });
         } else {
             res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
@@ -479,16 +600,6 @@ app.post("/starte-scheduler", async (req, res) => {
 });
 
 // Die restlichen Routen und Funktionen bleiben unverändert
-
-if (!process.env.GOOGLE_API_KEY) {
-    console.error("Fehler: GOOGLE_API_KEY nicht in der .env-Datei gefunden.");
-    // Behalte dies, falls du KI-Funktionalität an anderer Stelle noch hast.
-    // Wenn die KI komplett entfernt wurde, kann dieser Block gelöscht werden.
-    process.exit(1);
-}
-const API_KEY = process.env.GOOGLE_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
 app.get('/', (req, res) => res.render('index'));
 app.get('/erstellen', (req, res) => res.render('erstellen'));
 app.get('/bearbeiten', (req, res) => res.render('bearbeiten'));

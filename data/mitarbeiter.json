@@ -9,7 +9,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Geschäftsführung", "GeschäftsführerIn"],
+    "rollenUndQualifikationen": ["Geschäftsführung", "GeschäftsführerIn", "ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
     "wunschschichten": [],
     "urlaubstageSet": []
@@ -24,10 +24,10 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
     "wunschschichten": [],
-    "urlaubstageSet": []
+    "urlaubtageSet": []
   },
   {
     "id": "003",
@@ -39,8 +39,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Ressortverantwortliche"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport", "CvD"],
+    "rollenUndQualifikationen": ["Ressortverantwortliche", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubstageSet": []
   },
@@ -54,7 +54,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Buzz"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -69,8 +69,8 @@
     "wochenstunden": 32,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Leitender Redakteur"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Leitender Redakteur", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -84,7 +84,7 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "CVD_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -99,8 +99,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "stellv. Ressortleitung / CvD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "stellvtr. Ressortleitung / CvD", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -114,7 +114,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "SEO"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "SEO", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -129,7 +129,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -144,7 +144,7 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Ressortleitung / CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Ressortverantwortlicher", "CVD_QUALIFIKATION", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -174,7 +174,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Buzz"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -189,7 +189,7 @@
     "wochenstunden": 24,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "stellv. Leitender Redakteur / CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "stellv. Leitende Redakteurin / CvD", "CVD_QUALIFIKATION", "CVD_AM_WOCHENENDE_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD am Wochenende"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -204,8 +204,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "SEO"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "SEO", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -219,7 +219,7 @@
     "wochenstunden": 15,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "stellv. Leitender Redakteur / CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "stellv. Leitende Redakteurin / CvD", "CVD_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -234,8 +234,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Leitender Redakteur"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Stellvertr. Redkationsleiterin", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -249,8 +249,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "CvD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur / CvD", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -264,7 +264,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Leitender Redakteur"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Redaktioneller Datenanalyst", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -279,7 +279,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["SEO-Redakteurin", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "SEO"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -294,8 +294,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Ressortleitung / CvD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Stv. leitende Redakteurin Leitung Promi", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -309,7 +309,7 @@
     "wochenstunden": 20,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["Werkstudentin", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Werkstudent:innen"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -324,7 +324,7 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/CvD/Leitung Talentpool", "CVD_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -339,8 +339,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "Ressortverantwortlicher", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -354,8 +354,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": [],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Redaktioneller Datenanalyst", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -369,7 +369,7 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Ressortleitung / CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Ressortverantwortliche", "CVD_QUALIFIKATION", "CVD_AM_WOCHENENDE_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD am Wochenende"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -384,7 +384,7 @@
     "wochenstunden": 19.5,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "WerkstudentInnen"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "WerkstudentInnen", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Werkstudent:innen", "RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -399,8 +399,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "CvD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online Redakteur/ Stellvtr. Leitung Talentpool", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -414,7 +414,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -429,8 +429,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": [],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Ressortverantwortliche", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -444,7 +444,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -459,7 +459,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -474,7 +474,7 @@
     "wochenstunden": 19.5,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["Werkstudentin", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Werkstudent:innen", "RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -489,7 +489,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Buzz", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -504,7 +504,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -519,7 +519,7 @@
     "wochenstunden": 19.5,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "WerkstudentInnen"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "WerkstudentInnen", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Werkstudent:innen", "RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -534,7 +534,7 @@
     "wochenstunden": 10,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["Werkstudent Buzz", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Buzz", "Werkstudent:innen"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -564,7 +564,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -579,7 +579,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -594,8 +594,8 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "CVD_QUALIFIKATION"],
+    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -609,7 +609,7 @@
     "wochenstunden": 19.5,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["Werkstudentin"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -624,7 +624,7 @@
     "wochenstunden": 19.5,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Content Manager Buzz", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["Buzz"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -639,7 +639,7 @@
     "wochenstunden": 15,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Werkstudent Content Manager", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Werkstudent:innen"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -654,7 +654,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -669,7 +669,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Volontariat", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -684,7 +684,7 @@
     "wochenstunden": 30,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "User Acquisition & Retention Managerin", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -699,7 +699,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -714,7 +714,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -744,7 +744,7 @@
     "wochenstunden": 19.5,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["Werkstudentin"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -759,7 +759,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -774,7 +774,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "Online-Redakteur/In", "Video-Redakteur", "ONLINE_REDAKTION_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24.de", "Video"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -789,7 +789,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [],
+    "rollenUndQualifikationen": ["Projektmanagerin RUHR24JOBS", "ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["JOBS"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -804,7 +804,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["JOBS", "Marketin ManagerIn"],
+    "rollenUndQualifikationen": ["JOBS", "Marketing Manager", "ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["JOBS"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -819,7 +819,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Geschäftsführung", "Teamassistentin"],
+    "rollenUndQualifikationen": ["Geschäftsführung", "Teamassistentin", "ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -834,7 +834,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Geschäftsführung", "People & Culture ManagerIn"],
+    "rollenUndQualifikationen": ["Geschäftsführung", "People & Culture Managerin", "ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
     "wunschschichten": [],
     "urlaubtageSet": []
@@ -849,7 +849,7 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["Online-Redaktion"],
+    "rollenUndQualifikationen": ["Online-Redaktion", "KI-Spezialist", "ADMIN_QUALIFIKATION"],
     "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
     "wunschschichten": [],
     "urlaubtageSet": []

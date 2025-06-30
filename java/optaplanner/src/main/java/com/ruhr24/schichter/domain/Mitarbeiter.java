@@ -2,13 +2,15 @@ package com.ruhr24.schichter.domain;
 
 import org.optaplanner.core.api.domain.lookup.PlanningId;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
+//import java.util.stream.Collectors;
 
 public class Mitarbeiter {
 
@@ -22,6 +24,7 @@ public class Mitarbeiter {
     private int wochenstunden; // Geplante Wochenarbeitszeit (int)
     private boolean cvd; // Ist der Mitarbeiter ein Chef vom Dienst?
     private String notizen; // Notizen zum Mitarbeiter
+    private int targetBiWeeklyHours; // Ziel-Stunden für den 2-Wochen-Zeitraum
 
     // NEU: Liste für detailliertere Rollen/Qualifikationen aus der 'Stelle'-Spalte
     private List<String> rollenUndQualifikationen;
@@ -32,6 +35,10 @@ public class Mitarbeiter {
     private List<Schicht> wunschschichten; // Liste der Schichten, die der Mitarbeiter gerne hätte
     // private Set<LocalDate> urlaubstageSet; // Set von Daten, an denen der Mitarbeiter Urlaub hat - AUSKOMMENTIERT
 
+    // NEU: Liste der SchichtBlöcke, die diesem Mitarbeiter zugewiesen wurden (wird von OptaPlanner gesetzt)
+    private List<SchichtBlock> assignedSchichtBlocks;
+
+
     // Standardkonstruktor (für Spring/JSON-Deserialisierung)
     public Mitarbeiter() {
         // Sicherstellen, dass Listen und Sets immer initialisiert sind, um NullPointerExceptions zu vermeiden
@@ -39,13 +46,15 @@ public class Mitarbeiter {
         // this.urlaubtageSet = new HashSet<>(); // AUSKOMMENTIERT
         this.rollenUndQualifikationen = new ArrayList<>();
         this.teamsUndZugehoerigkeiten = new ArrayList<>();
+        this.assignedSchichtBlocks = new ArrayList<>(); // Initialisieren
     }
 
     // Vollständiger Konstruktor (erweitert um neue Felder und angepasste Typen)
     public Mitarbeiter(String id, String nachname, String vorname, String email, String stellenbezeichnung,
                        String ressort, int wochenstunden, boolean cvd, String notizen,
                        List<String> rollenUndQualifikationen, List<String> teamsUndZugehoerigkeiten,
-                       List<Schicht> wunschschichten/*, Set<LocalDate> urlaubstageSet*/) { // AUSKOMMENTIERT
+                       List<Schicht> wunschschichten,
+                       int targetBiWeeklyHours/*, Set<LocalDate> urlaubstageSet*/) { // AUSKOMMENTIERT
         this.id = id;
         this.nachname = nachname;
         this.vorname = vorname;
@@ -59,16 +68,18 @@ public class Mitarbeiter {
         this.rollenUndQualifikationen = rollenUndQualifikationen != null ? new ArrayList<>(rollenUndQualifikationen) : new ArrayList<>();
         this.teamsUndZugehoerigkeiten = teamsUndZugehoerigkeiten != null ? new ArrayList<>(teamsUndZugehoerigkeiten) : new ArrayList<>();
         this.wunschschichten = wunschschichten != null ? new ArrayList<>(wunschschichten) : new ArrayList<>();
-        // this.urlaubtageSet = urlaubstageSet != null ? new HashSet<>(urlaubstageSet) : new HashSet<>(); // AUSKOMMENTIERT
+        // this.urlaubtageSet = urlaubstageSet != null ? new HashSet<>(urlaubtageSet) : new HashSet<>(); // AUSKOMMENTIERT
+        this.targetBiWeeklyHours = targetBiWeeklyHours;
+        this.assignedSchichtBlocks = new ArrayList<>(); // Initialisieren
     }
 
     // Vereinfachter Konstruktor für den MitarbeiterLoader (falls du ihn noch brauchst)
     // Passt sich an die CSV-Struktur an, die du zuletzt gezeigt hast
     public Mitarbeiter(String id, String nachname, String vorname, String email, String stellenbezeichnung,
                        String ressort, boolean isCvd, List<String> rollenUndQualifikationen,
-                       List<String> teamsUndZugehoerigkeiten, String notizen, int wochenstunden) {
+                       List<String> teamsUndZugehoerigkeiten, String notizen, int wochenstunden, int targetBiWeeklyHours) {
         this(id, nachname, vorname, email, stellenbezeichnung, ressort, wochenstunden, isCvd, notizen,
-                rollenUndQualifikationen, teamsUndZugehoerigkeiten, new ArrayList<>()/*, new HashSet<>()*/); // AUSKOMMENTIERT
+                rollenUndQualifikationen, teamsUndZugehoerigkeiten, new ArrayList<>(), targetBiWeeklyHours/*, new HashSet<>()*/); // AUSKOMMENTIERT
     }
 
 
@@ -136,6 +147,14 @@ public class Mitarbeiter {
         this.teamsUndZugehoerigkeiten = teamsUndZugehoerigkeiten != null ? new ArrayList<>(teamsUndZugehoerigkeiten) : new ArrayList<>();
     }
 
+    public int getTargetBiWeeklyHours() {
+        return targetBiWeeklyHours;
+    }
+
+    public void setTargetBiWeeklyHours(int targetBiWeeklyHours) {
+        this.targetBiWeeklyHours = targetBiWeeklyHours;
+    }
+    
     public String getRessort() {
         return ressort;
     }
@@ -182,9 +201,32 @@ public class Mitarbeiter {
     }
 
     public void setUrlaubstageSet(Set<LocalDate> urlaubstageSet) {
-        // this.urlaubtageSet = urlaubstageSet != null ? new HashSet<>(urlaubstageSet) : new HashSet<>(); // AUSKOMMENTIERT
+        // this.urlaubtageSet = urlaubtageSet != null ? new HashSet<>(urlaubtageSet) : new HashSet<>(); // AUSKOMMENTIERT
         // Nichts tun, da das Feature nicht aktiv ist
     }
+
+    @JsonIgnore
+    public List<SchichtBlock> getAssignedSchichtBlocks() {
+        return assignedSchichtBlocks;
+    }
+
+    public void setAssignedSchichtBlocks(List<SchichtBlock> assignedSchichtBlocks) {
+        this.assignedSchichtBlocks = assignedSchichtBlocks;
+    }
+
+    // NEU: Hilfsmethode, um zu prüfen, ob der Mitarbeiter eine bestimmte Qualifikation hat
+    public boolean hasQualification(String qualification) {
+        return rollenUndQualifikationen.contains(qualification);
+    }
+
+    // NEU: Hilfsmethode, um zu prüfen, ob der Mitarbeiter ALLE erforderlichen Qualifikationen hat
+    public boolean hasAllQualifikationen(List<String> requiredQualifikations) {
+        if (requiredQualifikations == null || requiredQualifikations.isEmpty()) {
+            return true; // Keine Qualifikationen erforderlich, also ist der Mitarbeiter qualifiziert
+        }
+        return rollenUndQualifikationen.containsAll(requiredQualifikations);
+    }
+
 
     // Optional: Eine Methode, um den vollständigen Namen zu bekommen
     public String getVollerName() {
@@ -220,7 +262,7 @@ public class Mitarbeiter {
                ", rollenUndQualifikationen=" + (rollenUndQualifikationen != null ? String.join(", ", rollenUndQualifikationen) : "[]") +
                ", teamsUndZugehoerigkeiten=" + (teamsUndZugehoerigkeiten != null ? String.join(", ", teamsUndZugehoerigkeiten) : "[]") +
                ", wunschschichten=" + (wunschschichten != null ? wunschschichten.size() + " Schichten" : "0 Schichten") +
-               //", urlaubtageSet=" + (urlaubtageSet != null ? urlaubtageSet.size() + " Tage" : "0 Tage") + // AUSKOMMENTIERT
+               ", assignedSchichtBlocks=" + (assignedSchichtBlocks != null ? assignedSchichtBlocks.size() + " Blöcke" : "0 Blöcke") +
                '}';
     }
 }

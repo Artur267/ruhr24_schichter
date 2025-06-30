@@ -5,11 +5,22 @@
     <entityClass>com.ruhr24.schichter.domain.SchichtBlock</entityClass>
 
     <scoreDirectorFactory>
-        <easyScoreCalculatorClass>com.ruhr24.schichter.solver.SimpleScoreCalculator</easyScoreCalculatorClass>
+        <constraintProviderClass>com.ruhr24.schichter.solver.SchichtplanungConstraintProvider</constraintProviderClass>
     </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>6000</secondsSpentLimit>
+        <secondsSpentLimit>3000</secondsSpentLimit>
     </termination>
+
+    <constructionHeuristic>
+        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
+    </constructionHeuristic>
+
+    <localSearch>
+        <localSearchType>LATE_ACCEPTANCE</localSearchType>
+        <acceptor>
+            <lateAcceptanceSize>100</lateAcceptanceSize>
+        </acceptor>
+    </localSearch>
 
 </solver>

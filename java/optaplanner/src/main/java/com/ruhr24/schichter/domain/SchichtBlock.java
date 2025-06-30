@@ -1,4 +1,5 @@
-package com.ruhr24.schichter.domain; // Passe das Paket an, falls nötig!
+// src/main/java/com.ruhr24.schichter.domain/SchichtBlock.java
+package com.ruhr24.schichter.domain;
 
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.lookup.PlanningId;
@@ -8,21 +9,21 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID; // Wichtig: Import für UUID
 
 @PlanningEntity // Markiert diese Klasse als planbare Entität
 public class SchichtBlock {
 
     @PlanningId
-    private Long id; // Eindeutige ID für den SchichtBlock
+    private UUID id; // Eindeutige ID für den SchichtBlock (jetzt UUID)
 
     private String name; // Name des SchichtBlocks (z.B. "CvD Frühdienst 5 Tage", "Standard Woche")
 
-    // Die @PlanningVariable Annotation ist jetzt auf dem Getter!
-    private Mitarbeiter mitarbeiter; // Der Mitarbeiter, der diesem Block ZUGETEILT wird (Planning Variable)
+    // Der Mitarbeiter, der diesem Block ZUGETEILT wird (Planning Variable)
+    @PlanningVariable(valueRangeProviderRefs = {"mitarbeiterRange"}) // OptaPlanner soll hier Mitarbeiter zuweisen
+    private Mitarbeiter mitarbeiter;
 
     // Liste der einzelnen Schichten, die diesen Block ausmachen
-    // WICHTIG: Diese Schichten sind hier VORDEFINIERT und werden nicht vom Planner einzeln verschoben.
-    // Sie sind ein Bestandteil des Blocks.
     private List<Schicht> schichtenImBlock;
 
     // Optional: Start- und Enddatum des Blocks, um die Position im Kalender zu fixieren/definieren
@@ -41,31 +42,46 @@ public class SchichtBlock {
         this.requiredQualifikationen = new ArrayList<>(); // Sicherstellen, dass die Liste initialisiert ist
     }
 
-    // ORIGINAL-KONSTRUKTOR mit 6 Parametern (bleibt für Kompatibilität bestehen, wenn noch alte Aufrufe existieren)
-    public SchichtBlock(Long id, String name, List<Schicht> schichtenImBlock, LocalDate blockStartDatum, LocalDate blockEndDatum, String blockTyp) {
-        this(id, name, schichtenImBlock, blockStartDatum, blockEndDatum, blockTyp, new ArrayList<>()); // Ruft den neuen Konstruktor auf
+    // ORIGINAL-KONSTRUKTOR mit 6 Parametern (bleibt für Kompatibilität bestehen)
+    // Ruft den neuen, erweiterten Konstruktor auf.
+    // ACHTUNG: Die ID ist jetzt UUID, nicht Long.
+    public SchichtBlock(UUID id, String name, List<Schicht> schichtenImBlock, LocalDate blockStartDatum, LocalDate blockEndDatum, String blockTyp) {
+        // WICHTIG: Hier new ArrayList<>() übergeben, um requiredQualifikationen zu initialisieren
+        this(id, name, schichtenImBlock, blockStartDatum, blockEndDatum, blockTyp, new ArrayList<>());
     }
 
     // NEUER, ERWEITERTER KONSTRUKTOR mit 7 Parametern, der die Qualifikationen annimmt
-    // Dies ist der Konstruktor, den der SchichtBlockGenerator aufrufen will.
-    public SchichtBlock(Long id, String name, List<Schicht> schichtenImBlock,
+    // Dies ist der Konstruktor, den der SchichtBlockGenerator aufrufen wird.
+    // ACHTUNG: Die ID ist jetzt UUID, nicht Long.
+    public SchichtBlock(UUID id, String name, List<Schicht> schichtenImBlock,
                         LocalDate blockStartDatum, LocalDate blockEndDatum,
                         String blockTyp, List<String> requiredQualifikationen) {
         this.id = id;
         this.name = name;
+        // Defensive Kopie der Schichtenliste und Zuweisung des SchichtBlocks zu jeder Schicht
         this.schichtenImBlock = schichtenImBlock != null ? new ArrayList<>(schichtenImBlock) : new ArrayList<>();
+        if (this.schichtenImBlock != null) {
+            for (Schicht schicht : this.schichtenImBlock) {
+                // WICHTIG: Setze die Referenz zum übergeordneten Block in jeder einzelnen Schicht
+                schicht.setSchichtBlock(this);
+            }
+        }
         this.blockStartDatum = blockStartDatum;
         this.blockEndDatum = blockEndDatum;
         this.blockTyp = blockTyp;
+        // Defensive Kopie der Qualifikationsliste
         this.requiredQualifikationen = requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
+        // Mitarbeiter wird von OptaPlanner gesetzt, initial ist es null
+        this.mitarbeiter = null;
     }
 
     // --- Getter und Setter ---
-    public Long getId() {
+    // ACHTUNG: Getter/Setter für ID sind jetzt vom Typ UUID
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -77,21 +93,43 @@ public class SchichtBlock {
         this.name = name;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"mitarbeiterRange"}) // OptaPlanner soll hier Mitarbeiter zuweisen
+    // Getter für die Planning Variable
     public Mitarbeiter getMitarbeiter() {
         return mitarbeiter;
     }
 
+    // Setter für die Planning Variable
+    // Wenn ein Mitarbeiter diesem Block zugewiesen wird,
+    // weisen wir ihn auch jeder einzelnen Schicht im Block zu UND fügen den Block dem Mitarbeiter hinzu.
     public void setMitarbeiter(Mitarbeiter mitarbeiter) {
         this.mitarbeiter = mitarbeiter;
+        if (this.schichtenImBlock != null) {
+            for (Schicht schicht : this.schichtenImBlock) {
+                schicht.setMitarbeiter(mitarbeiter);
+            }
+        }
+        // WICHTIG: Füge diesen SchichtBlock zur Liste der zugewiesenen Blöcke des Mitarbeiters hinzu
+        // Diese Logik kann auch in einem Listener nach dem Solver-Lauf erfolgen, um die Performance nicht zu beeinträchtigen.
+        // Für jetzt behalten wir es, wenn du es so haben möchtest.
+        if (mitarbeiter != null && !mitarbeiter.getAssignedSchichtBlocks().contains(this)) {
+            mitarbeiter.getAssignedSchichtBlocks().add(this);
+        }
     }
 
     public List<Schicht> getSchichtenImBlock() {
-        return schichtenImBlock;
+        // Rückgabe einer defensiven Kopie, um externe Änderungen an der Liste zu verhindern
+        return new ArrayList<>(schichtenImBlock);
     }
 
     public void setSchichtenImBlock(List<Schicht> schichtenImBlock) {
-        this.schichtenImBlock = schichtenImBlock;
+        // Sicherstellen, dass beim Setzen eine defensive Kopie verwendet wird
+        this.schichtenImBlock = schichtenImBlock != null ? new ArrayList<>(schichtenImBlock) : new ArrayList<>();
+        // WICHTIG: Auch hier die Referenz zum übergeordneten Block setzen
+        if (this.schichtenImBlock != null) {
+            for (Schicht schicht : this.schichtenImBlock) {
+                schicht.setSchichtBlock(this);
+            }
+        }
     }
 
     public LocalDate getBlockStartDatum() {
@@ -119,14 +157,53 @@ public class SchichtBlock {
     }
 
     public List<String> getRequiredQualifikationen() {
-        if (requiredQualifikationen == null) {
-            return new ArrayList<>();
-        }
-        return requiredQualifikationen;
+        // Rückgabe einer defensiven Kopie oder einer leeren Liste, nie null
+        return requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
     }
 
     public void setRequiredQualifikationen(List<String> requiredQualifikationen) {
-        this.requiredQualifikationen = requiredQualifikationen;
+        // Sicherstellen, dass beim Setzen eine defensive Kopie verwendet wird
+        this.requiredQualifikationen = requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
+    }
+
+    /**
+     * Berechnet die gesamte Arbeitszeit (in Minuten) aller Schichten in diesem Block.
+     * @return Gesamtdauer in Minuten.
+     */
+    public long getTotalDurationInMinutes() {
+        if (schichtenImBlock == null) {
+            return 0;
+        }
+        return schichtenImBlock.stream()
+                .mapToLong(Schicht::getArbeitszeitInMinuten)
+                .sum();
+    }
+
+    /**
+     * Gibt das Startdatum des Blocks zurück (Alias für blockStartDatum).
+     * @return Startdatum.
+     */
+    public LocalDate getStartDate() {
+        return blockStartDatum;
+    }
+
+    /**
+     * Gibt das Enddatum des Blocks zurück (Alias für blockEndDatum).
+     * @return Enddatum.
+     */
+    public LocalDate getEndDate() {
+        return blockEndDatum;
+    }
+
+    /**
+     * Berechnet die Anzahl der Tage, die dieser Block umfasst.
+     * @return Anzahl der Tage.
+     */
+    public long getTotalDays() {
+        if (blockStartDatum == null || blockEndDatum == null) {
+            return 0;
+        }
+        return java.time.temporal.ChronoUnit.DAYS.between(blockStartDatum, blockEndDatum) + 1;
     }
 
     @Override

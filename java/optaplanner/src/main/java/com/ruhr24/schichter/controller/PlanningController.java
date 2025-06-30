@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
+//import java.time.LocalTime;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.ArrayList;
@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.Comparator;
+//import java.util.Arrays;
+//import java.util.Comparator;
 
 @Controller
 @RequestMapping("/api")
@@ -407,7 +407,7 @@ public class PlanningController {
 
         return plan;
     }
-
+    /*
     // Hilfsmethode zur Ausgabe der Lösung im Log
     private void gibLösungsLoggingAus(SchichtPlan solution) {
         System.out.println("----------------------------------------------------");
@@ -441,7 +441,7 @@ public class PlanningController {
                                 });
                     });
         }
-    }
+    } */
 
     /**
      * Konvertiert die OptaPlanner-Lösung in ein Format, das vom Frontend

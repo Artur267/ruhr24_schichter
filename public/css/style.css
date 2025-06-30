@@ -22,6 +22,10 @@ body {
     align-items: center;
 }
 
+.navbar h1 {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
 .navbar a {
     color: white;
     text-decoration: none;
@@ -46,9 +50,8 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     padding: 1rem;
-    width: 300px;
-    max-height: 300px;
     text-align: center;
+    margin: 2rem;
 }
 
 .card h3 {
@@ -322,6 +325,7 @@ body {
       padding: 0.6rem 1.2rem;
       border-radius: 0.5rem;
       background: var(--btn-bg, #ee7203);
+      font-size: 1rem;
       color: white;
       border: none;
       cursor: pointer;

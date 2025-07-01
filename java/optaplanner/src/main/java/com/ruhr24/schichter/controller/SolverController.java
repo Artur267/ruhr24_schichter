@@ -8,7 +8,7 @@ import com.ruhr24.schichter.domain.Schicht;
 
 import com.ruhr24.schichter.dto.PlanungsanfrageDto;
 import com.ruhr24.schichter.generator.SchichtBlockGenerator;
-import com.ruhr24.schichter.solution.SolutionStore;
+import com.ruhr24.schichter.solution.SolutionStore; // Stellen Sie sicher, dass dies existiert
 
 import org.optaplanner.core.api.solver.SolverJob;
 import org.optaplanner.core.api.solver.SolverManager;
@@ -19,6 +19,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+//import java.time.LocalTime; // Hinzugefügt für CSV-Export
+import java.time.format.DateTimeFormatter; // Hinzugefügt für CSV-Export
+import java.io.File; // Hinzugefügt für CSV-Export
+import java.io.FileWriter; // Hinzugefügt für CSV-Export
+import java.io.IOException; // Hinzugefügt für CSV-Export
+import java.util.ArrayList; // Hinzugefügt für CSV-Export
+import java.util.Comparator; // Hinzugefügt für CSV-Export
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.HashSet;
+import java.util.HashSet; // Hinzugefügt für SchichtPlan Konstruktor
 
 @RestController
 @RequestMapping("/api")
@@ -39,11 +46,11 @@ public class SolverController {
     private SchichtBlockGenerator schichtBlockGenerator;
 
     @Autowired
-    private SolutionStore solutionStore;
+    private SolutionStore solutionStore; // Stellt sicher, dass diese Bean korrekt konfiguriert ist
 
     // Passe diesen Wert an den tatsächlichen spendLimit in deiner solverConfig.xml an!
     // Wenn in solverConfig.xml z.B. <spendLimit>18s</spendLimit> steht, dann hier 18 * 1000L.
-    private static final long ACTUAL_SOLVER_TIMEOUT_MILLIS = 18 * 1000L; // Beispiel: 18 Sekunden
+    private static final long ACTUAL_SOLVER_TIMEOUT_MILLIS = 600 * 1000L; // Angepasst auf 600 Sekunden (10 Minuten)
 
     /**
      * Startet eine asynchrone Planung für den Schichtplan.
@@ -63,10 +70,11 @@ public class SolverController {
 
         System.out.println("[JAVA BACKEND] Empfangen: " + mitarbeiterList.size() + " Mitarbeiter.");
 
-        List<SchichtBlock> schichtBlocks = schichtBlockGenerator.generateSchichtBlocks(vonDatum, bisDatum);
-        System.out.println("[JAVA BACKEND] Generierte " + schichtBlocks.size() + " Schichtblöcke.");
+        // Deklariere schichtBlockList hier, damit sie im gesamten Methodenumfang sichtbar ist
+        List<SchichtBlock> schichtBlockList = schichtBlockGenerator.generateSchichtBlocks(vonDatum, bisDatum, mitarbeiterList);
+        System.out.println("[JAVA BACKEND] Generierte " + schichtBlockList.size() + " Schichtblöcke.");
 
-        List<Schicht> alleSchichten = schichtBlocks.stream()
+        List<Schicht> alleSchichten = schichtBlockList.stream() // Korrigiert: schichtBlocks zu schichtBlockList
                 .flatMap(sb -> sb.getSchichtenImBlock().stream())
                 .collect(Collectors.toList());
         System.out.println("[JAVA BACKEND] Gesammelte " + alleSchichten.size() + " einzelne Schichten.");
@@ -78,7 +86,7 @@ public class SolverController {
             requestDto.getRessort(),
             mitarbeiterList,
             alleSchichten,
-            schichtBlocks,
+            schichtBlockList, // Korrigiert: schichtBlocks zu schichtBlockList
             new HashSet<>()
         );
 
@@ -87,20 +95,19 @@ public class SolverController {
 
         solutionStore.putProblem(problemId, problem);
 
-        final SolverJob<SchichtPlan, UUID>[] solverJobHolder = new SolverJob[1];
+        @SuppressWarnings("unchecked")
+        final SolverJob<SchichtPlan, UUID>[] solverJobHolder = (SolverJob<SchichtPlan, UUID>[]) new SolverJob[1];
 
         try {
             solverJobHolder[0] = solverManager.solveAndListen(problemId,
                     (problemIdGiven) -> problem,
                     (SchichtPlan bestSolution) -> {
                         System.out.println("[JAVA BACKEND] Neue beste Lösung für ID " + problemId + " gefunden. Score: " + bestSolution.getScore());
-                        bestSolution.getMitarbeiterList().forEach(mitarbeiter -> {
-                            List<SchichtBlock> assignedBlocks = bestSolution.getSchichtBlockList().stream()
-                                    .filter(sb -> sb.getMitarbeiter() != null && sb.getMitarbeiter().equals(mitarbeiter))
-                                    .collect(Collectors.toList());
-                            mitarbeiter.setAssignedSchichtBlocks(assignedBlocks);
-                        });
+                        // KEINE MANUELLE ZUWEISUNG VON assignedSchichtBlocks MEHR!
+                        // OptaPlanner verwaltet dies automatisch über @InverseRelationShadowVariable.
+                        // Die Daten für den Export werden direkt aus bestSolution.getSchichtBlockList() gelesen.
                         solutionStore.putSolution(problemId, bestSolution);
+                        saveSolutionToCsv(bestSolution); // Speichern Sie die Lösung in eine CSV-Datei
                     },
                     (UUID terminatedProblemId, Throwable throwable) -> {
                         AtomicReference<SchichtPlan> finalOrLastBestSolutionRef = new AtomicReference<>();
@@ -127,13 +134,11 @@ public class SolverController {
 
                         SchichtPlan finalSolutionToStore = finalOrLastBestSolutionRef.get();
                         if (finalSolutionToStore != null) {
-                            finalSolutionToStore.getMitarbeiterList().forEach(mitarbeiter -> {
-                                List<SchichtBlock> assignedBlocks = finalSolutionToStore.getSchichtBlockList().stream()
-                                        .filter(sb -> sb.getMitarbeiter() != null && sb.getMitarbeiter().equals(mitarbeiter))
-                                        .collect(Collectors.toList());
-                                mitarbeiter.setAssignedSchichtBlocks(assignedBlocks);
-                            });
+                            // KEINE MANUELLE ZUWEISUNG VON assignedSchichtBlocks MEHR!
+                            // OptaPlanner verwaltet dies automatisch über @InverseRelationShadowVariable.
+                            // Die Daten für den Export werden direkt aus finalSolutionToStore.getSchichtBlockList() gelesen.
                             solutionStore.putSolution(terminatedProblemId, finalSolutionToStore);
+                            saveSolutionToCsv(finalSolutionToStore); // Speichern Sie die finale Lösung in eine CSV-Datei
                             System.out.println("[JAVA BACKEND] Finale (oder letzte beste) Lösung für ID " + terminatedProblemId + " im Store aktualisiert/gespeichert.");
                         } else {
                             System.err.println("[JAVA BACKEND] ⚠️ Warnung: Keine finale oder beste Zwischenlösung für ID " + terminatedProblemId + " zum Speichern im Store verfügbar nach Solver-Beendigung.");
@@ -210,6 +215,99 @@ public class SolverController {
             errorBody.put("error", "Planungs-Job mit ID " + problemId + " wurde nicht gefunden oder ist nicht mehr aktiv oder konnte keine Lösung speichern.");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody); // Auch hier JSON
         }
-        // --- NEUE, ROBUSTERE LOGIK ENDE ---
+    }
+
+    // --- HILFSMETHODE ZUM SPEICHERN DER LÖSUNG IN CSV (Kopiert aus vorheriger Iteration) ---
+    private void saveSolutionToCsv(SchichtPlan schichtPlan) {
+        // Sicherstellen, dass der Ordner 'results' existiert
+        File resultsDir = new File("results");
+        if (!resultsDir.exists()) {
+            resultsDir.mkdirs();
+        }
+
+        File outputFile = new File("results/output.csv"); // Direkter Pfad
+        try (FileWriter writer = new FileWriter(outputFile)) {
+            // CSV-Header schreiben
+            writer.append("NutzerID;Nachname;Vorname;E-Mail;Stellenbezeichnung;Ressort;CVD;Qualifikationen;Teams;Notizen;Wochenstunden;MonatsSumme;Delta;");
+
+            // Ermittle den gesamten Planungszeitraum basierend auf den Blöcken
+            LocalDate currentMinDate = schichtPlan.getSchichtBlockList().stream()
+                    .map(SchichtBlock::getBlockStartDatum)
+                    .min(LocalDate::compareTo)
+                    .orElse(LocalDate.now()); // Fallback zum aktuellen Datum
+            LocalDate currentMaxDate = schichtPlan.getSchichtBlockList().stream()
+                    .map(SchichtBlock::getBlockEndDatum)
+                    .max(LocalDate::compareTo)
+                    .orElse(LocalDate.now()); // Fallback zum aktuellen Datum
+
+            for (LocalDate date = currentMinDate; !date.isAfter(currentMaxDate); date = date.plusDays(1)) {
+                writer.append(date.format(DateTimeFormatter.ofPattern("dd.MM."))).append(" Von;");
+                writer.append(date.format(DateTimeFormatter.ofPattern("dd.MM."))).append(" Bis;");
+            }
+            writer.append("\n");
+
+            // Daten für jeden Mitarbeiter schreiben
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+            // OptaPlanner setzt den Mitarbeiter auf dem SchichtBlock.
+            // Wir gruppieren die zugewiesenen Schichten hier für den Export.
+            Map<Mitarbeiter, List<SchichtBlock>> assignedBlocksByMitarbeiter = schichtPlan.getSchichtBlockList().stream()
+                    .filter(sb -> sb.getMitarbeiter() != null) // Nur zugewiesene Blöcke betrachten
+                    .collect(Collectors.groupingBy(SchichtBlock::getMitarbeiter));
+
+            for (Mitarbeiter mitarbeiter : schichtPlan.getMitarbeiterList()) {
+                writer.append(mitarbeiter.getId()).append(";");
+                writer.append(mitarbeiter.getNachname()).append(";");
+                writer.append(mitarbeiter.getVorname()).append(";");
+                writer.append(mitarbeiter.getEmail()).append(";");
+                writer.append(mitarbeiter.getStellenbezeichnung()).append(";");
+                writer.append(mitarbeiter.getRessort()).append(";");
+                writer.append(String.valueOf(mitarbeiter.isCVD())).append(";");
+                writer.append(String.join(",", mitarbeiter.getRollenUndQualifikationen())).append(";");
+                writer.append(String.join(",", mitarbeiter.getTeamsUndZugehoerigkeiten())).append(";");
+                writer.append(mitarbeiter.getNotizen()).append(";");
+                writer.append(String.valueOf(mitarbeiter.getWochenstunden())).append(";");
+
+                // Berechnung der zugewiesenen Stunden für den Mitarbeiter
+                double totalAssignedDurationInMinutes = 0;
+                List<SchichtBlock> blocksForThisMitarbeiter = assignedBlocksByMitarbeiter.getOrDefault(mitarbeiter, new ArrayList<>());
+                Map<LocalDate, List<Schicht>> assignedShiftsByDate = new HashMap<>();
+
+                for (SchichtBlock block : blocksForThisMitarbeiter) {
+                    if (block.getSchichtenImBlock() != null) {
+                        for (Schicht schicht : block.getSchichtenImBlock()) {
+                            totalAssignedDurationInMinutes += schicht.getDurationInMinutes();
+                            assignedShiftsByDate.computeIfAbsent(schicht.getDatum(), k -> new ArrayList<>()).add(schicht);
+                        }
+                    }
+                }
+                
+                writer.append(String.format("%.2f", totalAssignedDurationInMinutes / 60.0)).append(";"); // MonatsSumme in Stunden
+                // Delta für 4 Wochen, basierend auf der Annahme, dass der Planungszeitraum 4 Wochen umfasst
+                writer.append(String.format("%.2f", (totalAssignedDurationInMinutes - (mitarbeiter.getWochenstunden() * 60.0 * 4)) / 60.0)).append(";");
+
+                for (LocalDate date = currentMinDate; !date.isAfter(currentMaxDate); date = date.plusDays(1)) {
+                    List<Schicht> shiftsForDay = assignedShiftsByDate.getOrDefault(date, List.of());
+                    if (!shiftsForDay.isEmpty()) {
+                        // Für den CSV-Export nehmen wir einfach die erste Schicht des Tages
+                        // Wenn ein Mitarbeiter mehrere Schichten an einem Tag haben kann,
+                        // muss diese Logik angepasst werden (z.B. alle Schichten kommagetrennt)
+                        Schicht firstShift = shiftsForDay.stream()
+                                                        .min(Comparator.comparing(Schicht::getStartDateTime))
+                                                        .orElse(shiftsForDay.get(0)); // Nimm die früheste Schicht
+                        writer.append(firstShift.getStartDateTime().toLocalTime().format(timeFormatter)).append(";");
+                        writer.append(firstShift.getEndDateTime().toLocalTime().format(timeFormatter)).append(";");
+                    } else {
+                        writer.append("").append(";"); // Leere Spalte, wenn keine Schicht
+                        writer.append("").append(";"); // Leere Spalte, wenn keine Schicht
+                    }
+                }
+                writer.append("\n");
+            }
+            System.out.println("[JAVA BACKEND] CSV-Lösung erfolgreich gespeichert unter: " + outputFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("[JAVA BACKEND] Fehler beim Speichern der CSV-Lösung: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

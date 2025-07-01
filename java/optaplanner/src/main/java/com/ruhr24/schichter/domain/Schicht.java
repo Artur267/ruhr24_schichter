@@ -47,7 +47,13 @@ public class Schicht {
         this.schichtBlock = null;
     }
 
-
+    public long getDurationInMinutes() {
+        if (getStartDateTime() != null && getEndDateTime() != null) {
+            return Duration.between(getStartDateTime(), getEndDateTime()).toMinutes();
+        }
+        return 0;
+    }
+    
     /**
      * Berechnet die reine Arbeitszeit dieser einzelnen Schicht in Minuten unter Berücksichtigung von Pausen.
      * Logik basierend auf SchichtTyp.

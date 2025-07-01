@@ -1,9 +1,13 @@
 // src/main/java/com.ruhr24.schichter.domain/SchichtBlock.java
 package com.ruhr24.schichter.domain;
+import com.ruhr24.schichter.solver.SchichtBlockDifficultyComparator;
+import com.ruhr24.schichter.solver.MitarbeiterStrengthComparator; // Wichtig: Import für den Comparator
 
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.lookup.PlanningId;
+//import org.optaplanner.core.api.domain.variable.InverseRelationShadowVariable;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
+//import org.optaplanner.core.api.domain.entity.PlanningEntity;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -11,8 +15,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID; // Wichtig: Import für UUID
 
-@PlanningEntity // Markiert diese Klasse als planbare Entität
+@PlanningEntity(difficultyComparatorClass = SchichtBlockDifficultyComparator.class) // Markiert diese Klasse als planbare Entität
 public class SchichtBlock {
+
+    public static boolean DEBUG_WILDCARD_QUALIFICATIONS_ACTIVE = true;
+
 
     @PlanningId
     private UUID id; // Eindeutige ID für den SchichtBlock (jetzt UUID)
@@ -20,7 +27,7 @@ public class SchichtBlock {
     private String name; // Name des SchichtBlocks (z.B. "CvD Frühdienst 5 Tage", "Standard Woche")
 
     // Der Mitarbeiter, der diesem Block ZUGETEILT wird (Planning Variable)
-    @PlanningVariable(valueRangeProviderRefs = {"mitarbeiterRange"}) // OptaPlanner soll hier Mitarbeiter zuweisen
+    //@PlanningVariable(valueRangeProviderRefs = {"mitarbeiterRange"}) // OptaPlanner soll hier Mitarbeiter zuweisen
     private Mitarbeiter mitarbeiter;
 
     // Liste der einzelnen Schichten, die diesen Block ausmachen
@@ -39,12 +46,11 @@ public class SchichtBlock {
     // OptaPlanner benötigt einen No-Arg-Konstruktor
     public SchichtBlock() {
         this.schichtenImBlock = new ArrayList<>();
-        this.requiredQualifikationen = new ArrayList<>(); // Sicherstellen, dass die Liste initialisiert ist
+        // Wildcard-Logik für den No-Arg-Konstruktor
+        this.requiredQualifikationen = DEBUG_WILDCARD_QUALIFICATIONS_ACTIVE ?
+                                       new ArrayList<>() : new ArrayList<>(); // Startet leer, wird ggf. überschrieben
     }
 
-    // ORIGINAL-KONSTRUKTOR mit 6 Parametern (bleibt für Kompatibilität bestehen)
-    // Ruft den neuen, erweiterten Konstruktor auf.
-    // ACHTUNG: Die ID ist jetzt UUID, nicht Long.
     public SchichtBlock(UUID id, String name, List<Schicht> schichtenImBlock, LocalDate blockStartDatum, LocalDate blockEndDatum, String blockTyp) {
         // WICHTIG: Hier new ArrayList<>() übergeben, um requiredQualifikationen zu initialisieren
         this(id, name, schichtenImBlock, blockStartDatum, blockEndDatum, blockTyp, new ArrayList<>());
@@ -58,20 +64,23 @@ public class SchichtBlock {
                         String blockTyp, List<String> requiredQualifikationen) {
         this.id = id;
         this.name = name;
-        // Defensive Kopie der Schichtenliste und Zuweisung des SchichtBlocks zu jeder Schicht
         this.schichtenImBlock = schichtenImBlock != null ? new ArrayList<>(schichtenImBlock) : new ArrayList<>();
         if (this.schichtenImBlock != null) {
             for (Schicht schicht : this.schichtenImBlock) {
-                // WICHTIG: Setze die Referenz zum übergeordneten Block in jeder einzelnen Schicht
                 schicht.setSchichtBlock(this);
             }
         }
         this.blockStartDatum = blockStartDatum;
         this.blockEndDatum = blockEndDatum;
         this.blockTyp = blockTyp;
-        // Defensive Kopie der Qualifikationsliste
-        this.requiredQualifikationen = requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
-        // Mitarbeiter wird von OptaPlanner gesetzt, initial ist es null
+
+        // **Wildcard-Logik hier anwenden:**
+        if (DEBUG_WILDCARD_QUALIFICATIONS_ACTIVE) {
+            this.requiredQualifikationen = new ArrayList<>(); // Setzt die Liste leer, wenn der Schalter aktiv ist
+        } else {
+            this.requiredQualifikationen = requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
+        }
+        
         this.mitarbeiter = null;
     }
 
@@ -93,7 +102,10 @@ public class SchichtBlock {
         this.name = name;
     }
 
-    // Getter für die Planning Variable
+    @PlanningVariable(
+        valueRangeProviderRefs = {"mitarbeiterRange"}, 
+        strengthComparatorClass = MitarbeiterStrengthComparator.class // DIESE ZEILE IST NEU
+    )
     public Mitarbeiter getMitarbeiter() {
         return mitarbeiter;
     }
@@ -108,12 +120,7 @@ public class SchichtBlock {
                 schicht.setMitarbeiter(mitarbeiter);
             }
         }
-        // WICHTIG: Füge diesen SchichtBlock zur Liste der zugewiesenen Blöcke des Mitarbeiters hinzu
-        // Diese Logik kann auch in einem Listener nach dem Solver-Lauf erfolgen, um die Performance nicht zu beeinträchtigen.
-        // Für jetzt behalten wir es, wenn du es so haben möchtest.
-        if (mitarbeiter != null && !mitarbeiter.getAssignedSchichtBlocks().contains(this)) {
-            mitarbeiter.getAssignedSchichtBlocks().add(this);
-        }
+        // Zeile entfernt: if (mitarbeiter != null && !mitarbeiter.getAssignedSchichtBlocks().contains(this)) { mitarbeiter.getAssignedSchichtBlocks().add(this); }
     }
 
     public List<Schicht> getSchichtenImBlock() {
@@ -162,8 +169,12 @@ public class SchichtBlock {
     }
 
     public void setRequiredQualifikationen(List<String> requiredQualifikationen) {
-        // Sicherstellen, dass beim Setzen eine defensive Kopie verwendet wird
-        this.requiredQualifikationen = requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
+        // **Wildcard-Logik auch im Setter anwenden:**
+        if (DEBUG_WILDCARD_QUALIFICATIONS_ACTIVE) {
+            this.requiredQualifikationen = new ArrayList<>(); // Leert die Liste, wenn der Schalter aktiv ist
+        } else {
+            this.requiredQualifikationen = requiredQualifikationen != null ? new ArrayList<>(requiredQualifikationen) : new ArrayList<>();
+        }
     }
 
     /**

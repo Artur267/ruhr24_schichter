@@ -5,13 +5,13 @@ import org.optaplanner.core.api.domain.lookup.PlanningId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDate;
-import java.time.Duration; // Import für Duration
+//import java.time.Duration; // Import für Duration
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors; // Stellen Sie sicher, dass dies importiert ist
+//import java.util.stream.Collectors; // Stellen Sie sicher, dass dies importiert ist
 
 public class Mitarbeiter {
 
@@ -211,9 +211,11 @@ public class Mitarbeiter {
         return assignedSchichtBlocks;
     }
 
+    /*
     public void setAssignedSchichtBlocks(List<SchichtBlock> assignedSchichtBlocks) {
         this.assignedSchichtBlocks = assignedSchichtBlocks;
     }
+        */
 
     // NEU: Hilfsmethode, um zu prüfen, ob der Mitarbeiter eine bestimmte Qualifikation hat
     // DIESE METHODE FEHLTE UND WURDE HINZUGEFÜGT
@@ -237,13 +239,15 @@ public class Mitarbeiter {
     // NEUE HILFSMETHODE: Summiert die Gesamtdauer aller zugewiesenen SchichtBlöcke in Minuten
     // Diese Methode ist für die employeeCannotExceedWeeklyHoursHard Constraint ESSENTIELL.
     public long getTotalAssignedDurationInMinutes() {
-        // Stellt sicher, dass assignedSchichtBlocks nicht null ist, bevor gestreamt wird.
-        if (assignedSchichtBlocks == null) {
+        if (assignedSchichtBlocks == null || assignedSchichtBlocks.isEmpty()) {
             return 0;
         }
-        return assignedSchichtBlocks.stream()
+        long totalMinutes = assignedSchichtBlocks.stream()
                 .mapToLong(SchichtBlock::getTotalDurationInMinutes)
                 .sum();
+        // NEU: Debug-Ausgabe zur Überprüfung der Berechnung
+        System.out.println("DEBUG: Mitarbeiter " + nachname + " (" + id + ") - Total assigned minutes: " + totalMinutes);
+        return totalMinutes;
     }
 
 

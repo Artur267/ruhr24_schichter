@@ -25,7 +25,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 //import java.time.LocalTime;
 import java.time.Duration;
-import java.util.Collections;
+//import java.util.Collections;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -369,8 +369,12 @@ public class PlanningController {
         plan.setMitarbeiterList(mitarbeiterList);
         plan.setRessort(anfrageDto.getRessort()); // Setze das Ressort aus dem DTO
 
-        // HIER WIRD DER SCHICHTBLOCKGENERATOR AUFGERUFEN UND DIE BLÖCKE HINZUGEFÜGT
-        List<SchichtBlock> generatedSchichtBlocks = schichtBlockGenerator.generateSchichtBlocks(start, end);
+        // =================================================================================
+        // HIER IST DIE EINZIGE NOTWENDIGE ÄNDERUNG:
+        // Die `mitarbeiterList` wird nun an den Generator übergeben.
+        // =================================================================================
+        List<SchichtBlock> generatedSchichtBlocks = schichtBlockGenerator.generateSchichtBlocks(start, end, mitarbeiterList);
+        
         // WICHTIG: Die generierten SchichtBlöcke dem Plan hinzufügen!
         plan.setSchichtBlockList(generatedSchichtBlocks);
 
@@ -388,7 +392,7 @@ public class PlanningController {
             ));
         } else {
             System.out.println("[JAVA BACKEND] KEINE MITARBEITER IM DTO ERHALTEN. Fortfahren mit leerer Mitarbeiterliste.");
-            mitarbeiterList = Collections.emptyList();
+            // mitarbeiterList wird bereits oben aus dem DTO geholt, eine Neuzuweisung ist hier nicht nötig
         }
 
         System.out.println("[JAVA BACKEND] Generierte Schichtblöcke: " + generatedSchichtBlocks.size());
@@ -407,47 +411,7 @@ public class PlanningController {
 
         return plan;
     }
-    /*
-    // Hilfsmethode zur Ausgabe der Lösung im Log
-    private void gibLösungsLoggingAus(SchichtPlan solution) {
-        System.out.println("----------------------------------------------------");
-        System.out.println("OPTIMIERUNG ABGESCHLOSSEN!");
-        System.out.println("Finaler Score: " + solution.getScore()); // Diese Zeile ist wichtig!
-        System.out.println("----------------------------------------------------");
 
-        if (solution.getSchichtBlockList() != null) {
-            Map<Mitarbeiter, List<SchichtBlock>> zugewieseneBloeckeProMitarbeiter = solution.getSchichtBlockList().stream()
-                    .filter(block -> block.getMitarbeiter() != null)
-                    .collect(Collectors.groupingBy(SchichtBlock::getMitarbeiter));
-
-            // Sortierung nach Nachname und Vorname für bessere Lesbarkeit
-            zugewieseneBloeckeProMitarbeiter.entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey(Comparator.comparing(Mitarbeiter::getNachname)
-                                                      .thenComparing(Mitarbeiter::getVorname)))
-                    .forEach(entry -> {
-                        Mitarbeiter mitarbeiter = entry.getKey();
-                        List<SchichtBlock> bloecke = entry.getValue();
-                        System.out.println("[JAVA BACKEND] Mitarbeiter " + mitarbeiter.getVorname() + " " + mitarbeiter.getNachname() + " hat folgende Blöcke:");
-                        bloecke.stream()
-                                .sorted(Comparator.comparing(SchichtBlock::getBlockStartDatum))
-                                .forEach(block -> {
-                                    System.out.println("[JAVA BACKEND]   SchichtBlock: '" + block.getName() + "' (" + block.getBlockStartDatum() + " - " + block.getBlockEndDatum() + ") zugewiesen an: " +
-                                            (block.getMitarbeiter() != null ? block.getMitarbeiter().getVorname() + " " + block.getMitarbeiter().getNachname() : "UNZUGWIESEN") +
-                                            " (Typ: " + block.getBlockTyp() + ")");
-                                    block.getSchichtenImBlock().forEach(schicht ->
-                                            System.out.println("[JAVA BACKEND]     - Schicht: " + schicht.getDatum() + " " + schicht.getStartZeit().format(DateTimeFormatter.ofPattern("HH:mm")) + "-" + schicht.getEndZeit().format(DateTimeFormatter.ofPattern("HH:mm")) +
-                                                    " (" + schicht.getSchichtTyp() + ", Ressort: " + schicht.getRessortBedarf() + ")")
-                                    );
-                                });
-                    });
-        }
-    } */
-
-    /**
-     * Konvertiert die OptaPlanner-Lösung in ein Format, das vom Frontend
-     * (z.B. für die Mitarbeiterkalender-Anzeige) leicht verarbeitet werden kann.
-     * Angepasst für SchichtBlöcke.
-     */
     private List<Map<String, Object>> konvertiereLösungFuerFrontend(SchichtPlan solution) {
         Map<String, Map<String, Object>> mitarbeiterMap = new LinkedHashMap<>();
         // Deklariere die Liste hier, damit sie im Scope der Methode ist

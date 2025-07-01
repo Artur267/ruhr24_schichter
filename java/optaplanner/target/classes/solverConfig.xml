@@ -6,20 +6,23 @@
 
     <scoreDirectorFactory>
         <constraintProviderClass>com.ruhr24.schichter.solver.SchichtplanungConstraintProvider</constraintProviderClass>
-    </scoreDirectorFactory>
+        </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>900</secondsSpentLimit>
+        <secondsSpentLimit>1800</secondsSpentLimit>
     </termination>
 
     <constructionHeuristic>
-        <constructionHeuristicType>FIRST_FIT</constructionHeuristicType>
+        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
     </constructionHeuristic>
 
     <localSearch>
-        <acceptor>
-            <lateAcceptanceSize>100</lateAcceptanceSize>
-        </acceptor>
+        <localSearchType>TABU_SEARCH</localSearchType>
+        
+        <unionMoveSelector>
+            <changeMoveSelector/>
+            <swapMoveSelector/>
+        </unionMoveSelector>
     </localSearch>
 
 </solver>

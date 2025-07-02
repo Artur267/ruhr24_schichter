@@ -1,5 +1,7 @@
 // src/main/java/com/ruhr24.schichter.domain/Schicht.java
 package com.ruhr24.schichter.domain;
+import com.ruhr24.schichter.solver.MitarbeiterStrengthComparator;
+import com.ruhr24.schichter.solver.SchichtDifficultyComparator;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -9,9 +11,13 @@ import java.time.DayOfWeek;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.lookup.PlanningId;
+import org.optaplanner.core.api.domain.variable.PlanningVariable;
+
 import com.fasterxml.jackson.annotation.JsonIgnore; // Wichtig für @JsonIgnore
 
+@PlanningEntity(difficultyComparatorClass = SchichtDifficultyComparator.class)
 public class Schicht {
     @PlanningId
     private UUID id; // ID ist jetzt UUID, um Konsistenz mit SchichtPlan und Generator zu gewährleisten
@@ -137,7 +143,13 @@ public class Schicht {
     public void setSchichtTyp(String schichtTyp) { this.schichtTyp = schichtTyp; }
     public boolean isHolidayShift() { return isHolidayShift; }
     public void setHolidayShift(boolean holidayShift) { isHolidayShift = holidayShift; }
+
+    @PlanningVariable(
+        valueRangeProviderRefs = {"mitarbeiterRange"},
+        strengthComparatorClass = MitarbeiterStrengthComparator.class // DIESE ZEILE IST DER FIX
+    )
     public Mitarbeiter getMitarbeiter() { return mitarbeiter; }
+
     public void setMitarbeiter(Mitarbeiter mitarbeiter) { this.mitarbeiter = mitarbeiter; }
 
     @JsonIgnore // Wichtig, um JSON-Endlosschleifen zu vermeiden

@@ -106,6 +106,7 @@ public class Mitarbeiter {
         this.nachname = nachname;
     }
 
+    
     public String getVorname() {
         return vorname;
     }

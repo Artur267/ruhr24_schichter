@@ -2,14 +2,14 @@
 <solver xmlns="https://www.optaplanner.org/xsd/solver">
 
     <solutionClass>com.ruhr24.schichter.domain.SchichtPlan</solutionClass>
-    <entityClass>com.ruhr24.schichter.domain.SchichtBlock</entityClass>
+    <entityClass>com.ruhr24.schichter.domain.Schicht</entityClass>
 
     <scoreDirectorFactory>
         <constraintProviderClass>com.ruhr24.schichter.solver.SchichtplanungConstraintProvider</constraintProviderClass>
         </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>1800</secondsSpentLimit>
+        <secondsSpentLimit>3600</secondsSpentLimit>
     </termination>
 
     <constructionHeuristic>

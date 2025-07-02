@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.Map;
-import java.util.HashMap;
+//import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
@@ -41,14 +41,13 @@ public class SchichtPlan {
     @ValueRangeProvider(id = "mitarbeiterRange")
     private List<Mitarbeiter> mitarbeiterList;
 
-    // NEU: Diese Liste muss hinzugefügt werden, um OptaPlanner alle Schicht-Objekte als Problem Facts bekannt zu machen.
-    // Auch wenn die Schichten in SchichtBlock verschachtelt sind, müssen sie hier als Fact-Sammlung existieren,
-    // damit Constraint Streams sie direkt referenzieren können (z.B. in join(Schicht.class, ...)).
+    /*
     @ProblemFactCollectionProperty
     private List<Schicht> alleSchichten; // Eine Liste aller einzelnen Schicht-Objekte im Problem
+    */
 
     @PlanningEntityCollectionProperty
-    private List<SchichtBlock> schichtBlockList; // Die Liste der zu planenden SchichtBlöcke
+    private List<Schicht> schichtList; // Die Liste der zu planenden SchichtBlöcke
 
     @PlanningScore
     private HardSoftLongScore score;
@@ -61,27 +60,25 @@ public class SchichtPlan {
     private Set<LocalDate> publicHolidays;
 
 
-    // Konstruktor, um die Maps und Listen zu initialisieren
+    // 1. Angepasster No-Arg-Konstruktor
     public SchichtPlan() {
-        this.tatsaechlichGeplanteStundenProMitarbeiter = new HashMap<>();
+        this.mitarbeiterList = new ArrayList<>();
+        this.schichtList = new ArrayList<>(); // Dies ist die Liste der zu planenden Schichten
         this.publicHolidays = new HashSet<>();
-        this.schichtBlockList = new ArrayList<>();
-        this.alleSchichten = new ArrayList<>(); // NEU: Initialisiere die Schichtenliste
+        // Die anderen Maps und Listen sind für die reine Lösung nicht notwendig
     }
 
-    // Vollständiger Konstruktor (erweitert um neue Felder und angepasste Typen)
+    // 2. Der einzige benötigte Konstruktor für das neue, einfache Modell
     public SchichtPlan(UUID id, LocalDate von, LocalDate bis, String ressort,
-                       List<Mitarbeiter> mitarbeiterList, List<Schicht> alleSchichten, // NEU: alleSchichten hier hinzufügen
-                       List<SchichtBlock> schichtBlockList, Set<LocalDate> publicHolidays) {
+                       List<Mitarbeiter> mitarbeiterList, List<Schicht> schichtList, 
+                       Set<LocalDate> publicHolidays) {
         this.id = id;
         this.von = von;
         this.bis = bis;
         this.ressort = ressort;
-        this.mitarbeiterList = mitarbeiterList != null ? new ArrayList<>(mitarbeiterList) : new ArrayList<>();
-        this.alleSchichten = alleSchichten != null ? new ArrayList<>(alleSchichten) : new ArrayList<>(); // NEU: Zuweisung
-        this.schichtBlockList = schichtBlockList != null ? new ArrayList<>(schichtBlockList) : new ArrayList<>();
-        this.publicHolidays = publicHolidays != null ? new HashSet<>(publicHolidays) : new HashSet<>();
-        this.tatsaechlichGeplanteStundenProMitarbeiter = new HashMap<>(); // Muss initialisiert sein
+        this.mitarbeiterList = mitarbeiterList;
+        this.schichtList = schichtList; // Hier wird die Schichtliste zugewiesen
+        this.publicHolidays = publicHolidays;
     }
 
 
@@ -127,6 +124,7 @@ public class SchichtPlan {
         this.mitarbeiterList = mitarbeiterList;
     }
 
+    /*
     // NEU: Getter und Setter für die Liste aller Schichten
     public List<Schicht> getAlleSchichten() {
         return alleSchichten;
@@ -134,14 +132,14 @@ public class SchichtPlan {
 
     public void setAlleSchichten(List<Schicht> alleSchichten) {
         this.alleSchichten = alleSchichten;
+    } */
+
+    public List<Schicht> getSchichtList() {
+        return schichtList;
     }
 
-    public List<SchichtBlock> getSchichtBlockList() {
-        return schichtBlockList;
-    }
-
-    public void setSchichtBlockList(List<SchichtBlock> schichtBlockList) {
-        this.schichtBlockList = schichtBlockList;
+    public void setSchichtList(List<Schicht> schichtList) {
+        this.schichtList = schichtList;
     }
 
     public HardSoftLongScore getScore() {
@@ -176,8 +174,8 @@ public class SchichtPlan {
                ", bis=" + bis +
                ", ressort='" + ressort + '\'' +
                ", mitarbeiterList=" + (mitarbeiterList != null ? mitarbeiterList.size() : 0) + " Mitarbeiter" +
-               ", alleSchichten=" + (alleSchichten != null ? alleSchichten.size() : 0) + " Schichten" + // NEU: Ausgabe
-               ", schichtBlockList=" + (schichtBlockList != null ? schichtBlockList.size() : 0) + " SchichtBlöcke" +
+               //", alleSchichten=" + (alleSchichten != null ? alleSchichten.size() : 0) + " Schichten" + // NEU: Ausgabe
+               ", schichtBlockList=" + (schichtList != null ? schichtList.size() : 0) + " SchichtBlöcke" +
                ", score=" + score +
                ", publicHolidays=" + (publicHolidays != null ? publicHolidays.size() : 0) + " Feiertage" +
                '}';

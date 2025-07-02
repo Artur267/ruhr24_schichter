@@ -9,7 +9,9 @@
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/SchichtplanApplication.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/solver/SchichtplanungConstraintProvider.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/solution/SolutionStore.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/solver/SchichtDifficultyComparator.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Mitarbeiter.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/solver/MitarbeiterStrengthComparator.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/dto/PlanungsanfrageDto.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/generator/SchichtBlockGenerator.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/generator/SchichtGenerator.java

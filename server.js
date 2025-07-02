@@ -120,7 +120,8 @@ async function parseCSV(filePath) {
                     mitarbeiter.teamsUndZugehoerigkeiten = String(rowValues[actualHeaders.indexOf('Teams')]).trim().split(',').map(s => s.trim()).filter(s => s !== '') || []; // Richtig, als Array!
                     mitarbeiter.notizen = String(rowValues[actualHeaders.indexOf('Notizen')]).trim() || '';
                     mitarbeiter.wochenstunden = parseInt(String(rowValues[actualHeaders.indexOf('Wochenstunden')]).trim(), 10) || 0; // Richtig, als Zahl!
-
+                    mitarbeiter.monatsSumme = String(rowValues[actualHeaders.indexOf('MonatsSumme')]).trim() || '0,00';
+                    mitarbeiter.delta = String(rowValues[actualHeaders.indexOf('Delta')]).trim() || '0,00';
                     // Die Felder MonatsSumme und Delta aus deinem neuen JSON-Snippet sind hier nicht aufgeführt.
                     // Wenn sie in der CSV als separate Spalten existieren, füge sie hier hinzu:
                     // mitarbeiter.monatsSumme = parseFloat(String(rowValues[actualHeaders.indexOf('MonatsSumme')]).replace(',', '.')).trim()) || 0;
@@ -410,40 +411,58 @@ app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) 
 });
 
 function generateSchichtplanCSV(solution) {
-    if (!solution || !solution.mitarbeiterList || !Array.isArray(solution.mitarbeiterList) || !solution.schichtBlockList || !Array.isArray(solution.schichtBlockList)) {
-        console.error("[CSV_GENERATOR] Ungültige Lösung für CSV-Export: Mitarbeiter- oder Schichtblock-Liste fehlt.", solution);
-        return "";
+    // 1. Sicherheitsabfrage für die neue Datenstruktur
+    if (!solution || !solution.mitarbeiterList || !solution.schichtList) {
+        console.error("[CSV_GENERATOR] Ungültige Lösung für CSV-Export: Listen fehlen.", solution);
+        return ""; // Gibt einen leeren String zurück, um eine leere Datei zu erzeugen
     }
 
+    // 2. Sammle alle einzigartigen Daten aus der neuen schichtList
     const allDates = new Set();
-    solution.schichtBlockList.forEach(block => {
-        if (block.schichtenImBlock && Array.isArray(block.schichtenImBlock)) {
-            block.schichtenImBlock.forEach(schicht => {
-                if (schicht.datum) {
-                    allDates.add(schicht.datum); // Datum im Format YYYY-MM-DD
-                }
-            });
+    solution.schichtList.forEach(schicht => {
+        if (schicht.datum) {
+            allDates.add(schicht.datum); // Datum im Format YYYY-MM-DD
         }
     });
-
     const sortedDates = Array.from(allDates).sort();
 
+    // 3. Erstelle den kompletten Header, so wie dein Frontend ihn erwartet
     let csvHeaders = [
         "NutzerID", "Nachname", "Vorname", "E-Mail", "Stellenbezeichnung",
         "Ressort", "CVD", "Qualifikationen", "Teams", "Notizen",
         "Wochenstunden", "MonatsSumme", "Delta"
     ];
-
     sortedDates.forEach(date => {
         const [year, month, day] = date.split('-');
-        const displayDate = `${day}.${month}.`; // DD.MM.
+        const displayDate = `${day}.${month}.`; // Format: DD.MM.
         csvHeaders.push(`${displayDate} Von`);
         csvHeaders.push(`${displayDate} Bis`);
     });
-
     let csvContent = csvHeaders.join(";") + "\n";
 
+    // 4. Gruppiere die Schichten pro Mitarbeiter für einfache Verarbeitung
+    const schichtenProMitarbeiter = {};
+    solution.schichtList.forEach(schicht => {
+        if (schicht.mitarbeiter && schicht.mitarbeiter.id) {
+            const mitarbeiterId = schicht.mitarbeiter.id;
+            if (!schichtenProMitarbeiter[mitarbeiterId]) {
+                schichtenProMitarbeiter[mitarbeiterId] = [];
+            }
+            schichtenProMitarbeiter[mitarbeiterId].push(schicht);
+        }
+    });
+    
+    // 5. Erstelle eine Zeile für jeden Mitarbeiter
     solution.mitarbeiterList.forEach(mitarbeiter => {
+        const zugewieseneSchichten = schichtenProMitarbeiter[mitarbeiter.id] || [];
+        
+        // Berechne MonatsSumme und Delta
+        const monatsSummeMinuten = zugewieseneSchichten.reduce((sum, schicht) => sum + (schicht.arbeitszeitInMinuten || 0), 0);
+        const monatsSummeStunden = monatsSummeMinuten / 60.0;
+        // Annahme: 4 Wochen Planungszeitraum für Delta-Berechnung
+        const sollStunden = mitarbeiter.wochenstunden * 4.0;
+        const delta = monatsSummeStunden - sollStunden;
+
         const rowData = [
             `"${mitarbeiter.id || ''}"`,
             `"${mitarbeiter.nachname || ''}"`,
@@ -452,36 +471,27 @@ function generateSchichtplanCSV(solution) {
             `"${mitarbeiter.stellenbezeichnung || ''}"`,
             `"${mitarbeiter.ressort || ''}"`,
             `"${mitarbeiter.cvd ? 'true' : 'false'}"`,
-            `"${(mitarbeiter.rollenUndQualifikationen || []).join(', ').replace(/"/g, '""')}"`,
-            `"${(mitarbeiter.teamsUndZugehoerigkeiten || []).join(', ').replace(/"/g, '""')}"`,
+            `"${(mitarbeiter.rollenUndQualifikationen || []).join(', ')}"`,
+            `"${(mitarbeiter.teamsUndZugehoerigkeiten || []).join(', ')}"`,
             `"${(mitarbeiter.notizen || '').replace(/"/g, '""')}"`,
-            `"${mitarbeiter.wochenstunden != null ? mitarbeiter.wochenstunden : ''}"`,
-            `"0,00"`, // MonatsSumme (Platzhalter)
-            `"0,00"`  // Delta (Platzhalter)
+            `"${mitarbeiter.wochenstunden || 0}"`,
+            `"${monatsSummeStunden.toFixed(2).replace('.', ',')}"`,
+            `"${delta.toFixed(2).replace('.', ',')}"`
         ];
 
-        const assignedShiftsByDate = new Map();
-        solution.schichtBlockList.forEach(block => {
-            if (block.mitarbeiter && block.mitarbeiter.id === mitarbeiter.id && block.schichtenImBlock && Array.isArray(block.schichtenImBlock)) {
-                block.schichtenImBlock.forEach(schicht => {
-                    if (schicht.datum) {
-                        assignedShiftsByDate.set(schicht.datum, {
-                            startZeit: schicht.startZeit || '',
-                            endZeit: schicht.endZeit || ''
-                        });
-                    }
-                });
-            }
+        const tagesSchichtMap = new Map();
+        zugewieseneSchichten.forEach(schicht => {
+            tagesSchichtMap.set(schicht.datum, schicht);
         });
 
         sortedDates.forEach(date => {
-            const shift = assignedShiftsByDate.get(date);
-            if (shift) {
-                rowData.push(`"${shift.startZeit}"`);
-                rowData.push(`"${shift.endZeit}"`);
+            const schicht = tagesSchichtMap.get(date);
+            if (schicht && schicht.startZeit && schicht.endZeit) {
+                rowData.push(`"${schicht.startZeit.substring(0, 5)}"`);
+                rowData.push(`"${schicht.endZeit.substring(0, 5)}"`);
             } else {
-                rowData.push(`""`);
-                rowData.push(`""`);
+                rowData.push('""');
+                rowData.push('""');
             }
         });
         csvContent += rowData.join(";") + "\n";

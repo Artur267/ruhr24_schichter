@@ -1,6 +1,8 @@
 package com.ruhr24.schichter.domain;
 
 import org.optaplanner.core.api.domain.lookup.PlanningId;
+import org.optaplanner.core.api.domain.variable.InverseRelationShadowVariable;
+import org.optaplanner.core.api.domain.variable.InverseRelationShadowVariable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -26,6 +28,9 @@ public class Mitarbeiter {
     private boolean cvd; // Ist der Mitarbeiter ein Chef vom Dienst?
     private String notizen; // Notizen zum Mitarbeiter
     private int targetBiWeeklyHours; // Ziel-Stunden für den 2-Wochen-Zeitraum
+
+    @InverseRelationShadowVariable(sourceVariableName = "mitarbeiter")
+    private List<Arbeitsmuster> zugewieseneMuster;
 
     // NEU: Liste für detailliertere Rollen/Qualifikationen aus der 'Stelle'-Spalte
     private List<String> rollenUndQualifikationen;
@@ -106,7 +111,14 @@ public class Mitarbeiter {
         this.nachname = nachname;
     }
 
-    
+        public List<Arbeitsmuster> getZugewieseneMuster() {
+        return zugewieseneMuster;
+    }
+
+    public void setZugewieseneMuster(List<Arbeitsmuster> zugewieseneMuster) {
+        this.zugewieseneMuster = zugewieseneMuster;
+    }
+
     public String getVorname() {
         return vorname;
     }

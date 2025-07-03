@@ -2,18 +2,18 @@
 <solver xmlns="https://www.optaplanner.org/xsd/solver">
 
     <solutionClass>com.ruhr24.schichter.domain.SchichtPlan</solutionClass>
-    <entityClass>com.ruhr24.schichter.domain.Schicht</entityClass>
+    <entityClass>com.ruhr24.schichter.domain.Arbeitsmuster</entityClass>
 
     <scoreDirectorFactory>
         <constraintProviderClass>com.ruhr24.schichter.solver.SchichtplanungConstraintProvider</constraintProviderClass>
         </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>3600</secondsSpentLimit>
+        <secondsSpentLimit>40</secondsSpentLimit>
     </termination>
 
     <constructionHeuristic>
-        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
+        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
     </constructionHeuristic>
 
     <localSearch>

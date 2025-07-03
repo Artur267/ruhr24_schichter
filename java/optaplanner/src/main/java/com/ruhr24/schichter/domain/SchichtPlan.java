@@ -47,7 +47,7 @@ public class SchichtPlan {
     */
 
     @PlanningEntityCollectionProperty
-    private List<Schicht> schichtList; // Die Liste der zu planenden SchichtBlöcke
+    private List<Arbeitsmuster> arbeitsmusterList;
 
     @PlanningScore
     private HardSoftLongScore score;
@@ -63,21 +63,18 @@ public class SchichtPlan {
     // 1. Angepasster No-Arg-Konstruktor
     public SchichtPlan() {
         this.mitarbeiterList = new ArrayList<>();
-        this.schichtList = new ArrayList<>(); // Dies ist die Liste der zu planenden Schichten
+        this.arbeitsmusterList = new ArrayList<>();
         this.publicHolidays = new HashSet<>();
-        // Die anderen Maps und Listen sind für die reine Lösung nicht notwendig
     }
 
     // 2. Der einzige benötigte Konstruktor für das neue, einfache Modell
     public SchichtPlan(UUID id, LocalDate von, LocalDate bis, String ressort,
-                       List<Mitarbeiter> mitarbeiterList, List<Schicht> schichtList, 
-                       Set<LocalDate> publicHolidays) {
+                       List<Mitarbeiter> mitarbeiterList, List<Arbeitsmuster> arbeitsmusterList, Set<LocalDate> publicHolidays) {
         this.id = id;
         this.von = von;
         this.bis = bis;
-        this.ressort = ressort;
         this.mitarbeiterList = mitarbeiterList;
-        this.schichtList = schichtList; // Hier wird die Schichtliste zugewiesen
+        this.arbeitsmusterList = arbeitsmusterList;
         this.publicHolidays = publicHolidays;
     }
 
@@ -134,12 +131,12 @@ public class SchichtPlan {
         this.alleSchichten = alleSchichten;
     } */
 
-    public List<Schicht> getSchichtList() {
-        return schichtList;
+    public List<Arbeitsmuster> getArbeitsmusterList() {
+        return arbeitsmusterList;
     }
 
-    public void setSchichtList(List<Schicht> schichtList) {
-        this.schichtList = schichtList;
+    public void setArbeitsmusterList(List<Arbeitsmuster> arbeitsmusterList) {
+        this.arbeitsmusterList = arbeitsmusterList;
     }
 
     public HardSoftLongScore getScore() {
@@ -175,7 +172,7 @@ public class SchichtPlan {
                ", ressort='" + ressort + '\'' +
                ", mitarbeiterList=" + (mitarbeiterList != null ? mitarbeiterList.size() : 0) + " Mitarbeiter" +
                //", alleSchichten=" + (alleSchichten != null ? alleSchichten.size() : 0) + " Schichten" + // NEU: Ausgabe
-               ", schichtBlockList=" + (schichtList != null ? schichtList.size() : 0) + " SchichtBlöcke" +
+               ", arbeitsmusterList=" + (arbeitsmusterList != null ? arbeitsmusterList.size() : 0) + " Arbeitsmuster" +
                ", score=" + score +
                ", publicHolidays=" + (publicHolidays != null ? publicHolidays.size() : 0) + " Feiertage" +
                '}';

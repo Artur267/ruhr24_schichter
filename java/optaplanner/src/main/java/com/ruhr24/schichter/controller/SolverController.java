@@ -1,12 +1,22 @@
 package com.ruhr24.schichter.controller;
 
+import com.ruhr24.schichter.domain.Arbeitsmuster;
 import com.ruhr24.schichter.domain.Mitarbeiter;
 import com.ruhr24.schichter.domain.Schicht;
 import com.ruhr24.schichter.domain.SchichtPlan;
 import com.ruhr24.schichter.dto.PlanungsanfrageDto;
-import com.ruhr24.schichter.generator.SchichtGenerator;
+import com.ruhr24.schichter.generator.MusterGenerator;
+//import com.ruhr24.schichter.generator.SchichtGenerator;
 import com.ruhr24.schichter.solution.SolutionStore;
+import org.optaplanner.core.api.score.ScoreManager;
 
+
+//import org.optaplanner.core.api.score.explanation.ScoreExplanation;
+
+import org.optaplanner.core.api.score.ScoreExplanation;
+import org.optaplanner.core.api.score.ScoreManager;
+import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore;
+import org.optaplanner.core.api.solver.SolutionManager;
 import org.optaplanner.core.api.solver.SolverJob;
 import org.optaplanner.core.api.solver.SolverManager;
 import org.optaplanner.core.api.solver.SolverStatus;
@@ -19,7 +29,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.time.DayOfWeek;
+//import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -32,20 +42,19 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 public class SolverController {
 
-    @Autowired
-    private SolverManager<SchichtPlan, UUID> solverManager;
-
-    private final SchichtGenerator schichtGenerator;
-
-    @Autowired
-    private SolutionStore solutionStore;
+    private final SolverManager<SchichtPlan, UUID> solverManager;
+    private final SolutionManager<SchichtPlan, HardSoftLongScore> solutionManager; // NEU
+    private final MusterGenerator musterGenerator;
+    private final SolutionStore solutionStore;
 
     private static final long ACTUAL_SOLVER_TIMEOUT_MILLIS = 600 * 1000L;
 
-    public SolverController(SolverManager<SchichtPlan, UUID> solverManager, SolutionStore solutionStore) {
+    @Autowired
+    public SolverController(SolverManager<SchichtPlan, UUID> solverManager, SolutionManager<SchichtPlan, HardSoftLongScore> solutionManager, SolutionStore solutionStore) {
         this.solverManager = solverManager;
+        this.solutionManager = solutionManager; // NEU
         this.solutionStore = solutionStore;
-        this.schichtGenerator = new SchichtGenerator();
+        this.musterGenerator = new MusterGenerator();
     }
     
     @PostMapping("/solve")
@@ -53,14 +62,14 @@ public class SolverController {
         LocalDate vonDatum = requestDto.getVon();
         LocalDate bisDatum = requestDto.getBis();
 
-        List<Schicht> schichten = schichtGenerator.generate(vonDatum, bisDatum, requestDto.getMitarbeiterList());
+        List<Arbeitsmuster> muster = musterGenerator.generate(vonDatum, bisDatum, requestDto.getMitarbeiterList());
         SchichtPlan problem = new SchichtPlan(
             UUID.randomUUID(),
             vonDatum,
             bisDatum,
             requestDto.getRessort(),
             requestDto.getMitarbeiterList(),
-            schichten,
+            muster, // Wichtig: hier die Musterliste übergeben
             new HashSet<>()
         );
 
@@ -113,7 +122,18 @@ public class SolverController {
         SchichtPlan finalSolution = finalSolutionRef.get();
         if (finalSolution != null) {
             solutionStore.putSolution(problemId, finalSolution);
-            // HIER WIRD DIE CSV JETZT NUR NOCH EINMAL GERUFEN
+
+            // HIER IST DIE SCORE-ANALYSE, DIE JETZT FUNKTIONIERT
+            if (solutionManager != null) {
+                ScoreExplanation<SchichtPlan, HardSoftLongScore> scoreExplanation = solutionManager.explain(finalSolution);
+
+                System.out.println("\n\n--- SCORE-ANALYSE FÜR PROBLEM " + problemId + " ---");
+                System.out.println(scoreExplanation.getSummary());
+                System.out.println("--------------------------------------------------\n\n");
+            } else {
+                System.err.println("[JAVA BACKEND] solutionManager ist null, Score-Analyse wird übersprungen.");
+            }
+
             saveSolutionToCsv(finalSolution);
         }
     }
@@ -132,28 +152,20 @@ public class SolverController {
     }
     
     private void saveSolutionToCsv(SchichtPlan schichtPlan) {
-        // Sicherstellen, dass der Ordner 'results' existiert
         File resultsDir = new File("results");
         if (!resultsDir.exists()) resultsDir.mkdirs();
 
-        // Wir nutzen die feste output.csv, damit dein Frontend sie direkt findet
         File outputFile = new File(resultsDir, "output.csv");
-
-        // Null-Check, um Abstürze zu verhindern
+        
         if (schichtPlan == null || schichtPlan.getVon() == null || schichtPlan.getBis() == null) {
             System.err.println("[CSV-Fehler] Schichtplan oder dessen Daten sind null. Breche CSV-Erstellung ab.");
             return;
         }
 
         try (PrintWriter writer = new PrintWriter(new FileWriter(outputFile))) {
-            // 1. Erstelle den kompletten Header, den dein server.js und dein Backup erwarten
-            List<String> header = new ArrayList<>(List.of(
-                    "NutzerID", "Nachname", "Vorname", "E-Mail", "Stellenbezeichnung",
-                    "Ressort", "CVD", "Qualifikationen", "Teams", "Notizen",
-                    "Wochenstunden", "MonatsSumme", "Delta"
-            ));
+            // 1. Header erstellen (bleibt unverändert)
+            List<String> header = new ArrayList<>(List.of("NutzerID", "Nachname", "Vorname", "E-Mail", "Stellenbezeichnung", "Ressort", "CVD", "Qualifikationen", "Teams", "Notizen", "Wochenstunden", "MonatsSumme", "Delta"));
             List<LocalDate> allDatesInPlan = schichtPlan.getVon().datesUntil(schichtPlan.getBis().plusDays(1)).collect(Collectors.toList());
-            
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.");
             for (LocalDate date : allDatesInPlan) {
                 header.add(date.format(dateFormatter) + " Von");
@@ -161,25 +173,24 @@ public class SolverController {
             }
             writer.println(String.join(";", header));
 
-            // 2. Berechne die Anzahl der Werktage für die Delta-Berechnung
-            int anzahlWerktageImPlan = 0;
-             for (LocalDate date = schichtPlan.getVon(); !date.isAfter(schichtPlan.getBis()); date = date.plusDays(1)) {
-                if (date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY && 
-                   (schichtPlan.getPublicHolidays() == null || !schichtPlan.getPublicHolidays().contains(date))) {
-                    anzahlWerktageImPlan++;
-                }
-            }
+            // 2. KORREKTUR: Alle zugewiesenen Schichten aus den Mustern entpacken
+            List<Schicht> alleZugewiesenenSchichten = schichtPlan.getArbeitsmusterList().stream()
+                .filter(muster -> muster.getMitarbeiter() != null)
+                .flatMap(muster -> {
+                    // WICHTIG: Füge den Mitarbeiter vom Muster zu jeder Einzelschicht hinzu!
+                    muster.getSchichten().forEach(schicht -> schicht.setMitarbeiter(muster.getMitarbeiter()));
+                    return muster.getSchichten().stream();
+                })
+                .collect(Collectors.toList());
 
-            // 3. Sammle die zugewiesenen Schichten pro Mitarbeiter
-            Map<Mitarbeiter, List<Schicht>> schichtenProMitarbeiter = schichtPlan.getSchichtList().stream()
-                .filter(s -> s.getMitarbeiter() != null)
+            // 3. Gruppiere diese flache Liste von Schichten nach Mitarbeiter
+            Map<Mitarbeiter, List<Schicht>> schichtenProMitarbeiter = alleZugewiesenenSchichten.stream()
                 .collect(Collectors.groupingBy(Schicht::getMitarbeiter));
 
-            // 4. Schreibe für jeden Mitarbeiter eine Zeile mit allen Daten
+            // 4. Schreibe die CSV-Zeilen (diese Logik ist jetzt wieder korrekt)
             for (Mitarbeiter mitarbeiter : schichtPlan.getMitarbeiterList()) {
                 List<String> rowData = new ArrayList<>();
                 
-                // Füge alle Stammdaten hinzu, die dein Frontend erwartet
                 rowData.add(mitarbeiter.getId() != null ? mitarbeiter.getId() : "");
                 rowData.add(mitarbeiter.getNachname() != null ? mitarbeiter.getNachname() : "");
                 rowData.add(mitarbeiter.getVorname() != null ? mitarbeiter.getVorname() : "");
@@ -192,20 +203,17 @@ public class SolverController {
                 rowData.add(mitarbeiter.getNotizen() != null ? mitarbeiter.getNotizen() : "");
                 rowData.add(String.valueOf(mitarbeiter.getWochenstunden()));
 
-                // Berechne die Stunden
                 List<Schicht> zugewieseneSchichten = schichtenProMitarbeiter.getOrDefault(mitarbeiter, Collections.emptyList());
                 double totalHours = zugewieseneSchichten.stream().mapToLong(Schicht::getArbeitszeitInMinuten).sum() / 60.0;
-                double targetHours = (mitarbeiter.getWochenstunden() / 5.0) * anzahlWerktageImPlan;
+                double targetHours = (double) (mitarbeiter.getWochenstunden() * 4); // Annahme: 4 Wochen Plan
                 double delta = totalHours - targetHours;
                 
                 rowData.add(String.format(Locale.GERMANY, "%.2f", totalHours));
                 rowData.add(String.format(Locale.GERMANY, "%.2f", delta));
 
-                // Erstelle eine Map für schnellen Zugriff auf die Schicht eines Tages
                 Map<LocalDate, Schicht> tagesSchichtMap = zugewieseneSchichten.stream()
                         .collect(Collectors.toMap(Schicht::getDatum, Function.identity(), (s1, s2) -> s1));
 
-                // Füge die Schichtzeiten für jeden Tag hinzu
                 DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
                 for (LocalDate date : allDatesInPlan) {
                     Schicht schichtAnDiesemTag = tagesSchichtMap.get(date);
@@ -213,8 +221,8 @@ public class SolverController {
                         rowData.add(schichtAnDiesemTag.getStartZeit().format(timeFormatter));
                         rowData.add(schichtAnDiesemTag.getEndZeit().format(timeFormatter));
                     } else {
-                        rowData.add(""); // Leere Spalte für "Von"
-                        rowData.add(""); // Leere Spalte für "Bis"
+                        rowData.add("");
+                        rowData.add("");
                     }
                 }
                 writer.println(String.join(";", rowData));

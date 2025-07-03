@@ -17,7 +17,6 @@ import org.optaplanner.core.api.domain.variable.PlanningVariable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore; // Wichtig für @JsonIgnore
 
-@PlanningEntity(difficultyComparatorClass = SchichtDifficultyComparator.class)
 public class Schicht {
     @PlanningId
     private UUID id; // ID ist jetzt UUID, um Konsistenz mit SchichtPlan und Generator zu gewährleisten

@@ -2,10 +2,14 @@ com/ruhr24/schichter/domain/SchichtTyp.class
 com/ruhr24/schichter/domain/SchichtBlock.class
 com/ruhr24/schichter/domain/SchichtPlan.class
 com/ruhr24/schichter/SchichtplanApplication.class
+com/ruhr24/schichter/generator/MusterGenerator.class
+com/ruhr24/schichter/domain/Arbeitsmuster.class
 com/ruhr24/schichter/domain/Schicht.class
 com/ruhr24/schichter/dto/PlanungsanfrageDto.class
+com/ruhr24/schichter/solver/SchichtplanungConstraintProvider.class
 com/ruhr24/schichter/solver/SchichtBlockDifficultyComparator.class
 com/ruhr24/schichter/solution/SolutionStore.class
+com/ruhr24/schichter/solver/ArbeitsmusterDifficultyComparator.class
 com/ruhr24/schichter/solver/MitarbeiterStrengthComparator.class
 com/ruhr24/schichter/domain/Mitarbeiter.class
 com/ruhr24/schichter/controller/SolverController.class

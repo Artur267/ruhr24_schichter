@@ -1,7 +1,7 @@
 package com.ruhr24.schichter.solver;
 
+import com.ruhr24.schichter.domain.Arbeitsmuster;
 import com.ruhr24.schichter.domain.Mitarbeiter;
-import com.ruhr24.schichter.domain.Schicht;
 import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore;
 import org.optaplanner.core.api.score.stream.Constraint;
 import org.optaplanner.core.api.score.stream.ConstraintFactory;
@@ -9,232 +9,145 @@ import org.optaplanner.core.api.score.stream.ConstraintProvider;
 import org.optaplanner.core.api.score.stream.Joiners;
 import org.optaplanner.core.api.score.stream.ConstraintCollectors;
 
-import java.time.DayOfWeek;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.WeekFields;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 public class SchichtplanungConstraintProvider implements ConstraintProvider {
 
+    // Wir definieren mehr Stufen für die Strafen
     private static final long PENALTY_HARD = 1000L;
+    private static final long PENALTY_HIGH = 200L;
     private static final long PENALTY_MEDIUM = 50L;
     private static final long PENALTY_LOW = 10L;
 
     @Override
-    public Constraint[] defineConstraints(ConstraintFactory constraintFactory) {
+    public Constraint[] defineConstraints(ConstraintFactory cf) {
         return new Constraint[]{
-                // ==========================================================
-                // HARD: Diese Regeln dürfen NIE gebrochen werden
-                // ==========================================================
-                mitarbeiterMussQualifiziertSein(constraintFactory),
-                keineUeberlappendenSchichten(constraintFactory),
-                mindestens11StundenRuhezeit(constraintFactory),
-                
-                // ==========================================================
-                // SOFT: Diese Regeln definieren, was ein "guter" Plan ist
-                // ==========================================================
+                // ==== HARD CONSTRAINTS (Nur noch absolute K.O.-Kriterien) ====
+                einMusterProWocheProMitarbeiter(cf),
+                mitarbeiterPasstZuMuster(cf),
 
-                // HÖCHSTE PRIORITÄT (SOFT):
-                //unbesetzteSchichtenBestrafen(constraintFactory), // Lieber eine Regel brechen, als eine Schicht unbesetzt zu lassen
-                abweichungVonSollStundenMinimieren(constraintFactory), // DAS HAUPTZIEL: Stunden müssen stimmen!
-
-                // MITTLERE PRIORITÄT (SOFT):
-                bevorzugeEineSchichtartProWoche(constraintFactory), // Deine neue Regel für Block-Struktur
-                //nichtMehrAlsFuenfTageAmStueckArbeiten(constraintFactory),
-                wochenendeImmerZusammenHalten(constraintFactory),
-                
-                // NIEDRIGE PRIORITÄT (SOFT):
-                cvdDiensteGleichmaessigVerteilen(constraintFactory)
+                // ==== SOFT CONSTRAINTS (Unsere Wünsche, nach Priorität geordnet) ====
+                // Prio 1: Die Gesamtstunden müssen am Ende stimmen!
+                abweichungVonSollStundenMinimieren(cf),
+                danieleWochenendSequenz(cf),
+                fairnessBeiWochenenden(cf),
+                unbesetzteMusterBestrafen(cf)
         };
     }
 
-    // =================================================================================
-    // HARD CONSTRAINTS
-    // =================================================================================
-
-    /** Regel: Mitarbeiter muss die fachliche Qualifikation (z.B. CvD) für eine Schicht besitzen. */
-    protected Constraint mitarbeiterMussQualifiziertSein(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null && !erfuelltFachlicheQualifikation(s.getMitarbeiter(), s))
-                .penalize(HardSoftLongScore.ofHard(PENALTY_HARD), (s) -> 100)
-                .asConstraint("Mitarbeiter fachlich nicht qualifiziert");
-    }
-    
-    /** NEU: Regel: Mitarbeiter darf nur Schichten nehmen, die zu seinem Arbeitszeitmodell passen. */
-    protected Constraint passendeSchichtartFuerMitarbeiter(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null && !istSchichtFuerMitarbeiterZulaessig(s.getMitarbeiter(), s))
-                .penalize(HardSoftLongScore.ofHard(PENALTY_HARD), (s) -> 100)
-                .asConstraint("Unpassende Schichtart für Mitarbeiter");
+    // Harte Regel: Ein Mitarbeiter kann nicht zwei Muster in derselben Woche zugewiesen bekommen. (BLEIBT HARD)
+    private Constraint einMusterProWocheProMitarbeiter(ConstraintFactory cf) {
+        return cf.forEachUniquePair(Arbeitsmuster.class,
+                Joiners.equal(Arbeitsmuster::getMitarbeiter),
+                Joiners.equal(Arbeitsmuster::getWocheImJahr))
+            .penalize(HardSoftLongScore.ofHard(PENALTY_LOW))
+            .asConstraint("Mitarbeiter hat zwei Muster in einer Woche");
     }
 
-    protected Constraint keineUeberlappendenSchichten(ConstraintFactory cf) {
-        return cf.forEachUniquePair(Schicht.class,
-                        Joiners.equal(Schicht::getMitarbeiter),
-                        Joiners.overlapping(Schicht::getStartDateTime, Schicht::getEndDateTime))
-                .penalize(HardSoftLongScore.ofHard(PENALTY_HARD))
-                .asConstraint("Überlappende Schichten");
-    }
-
-    protected Constraint mindestens11StundenRuhezeit(ConstraintFactory cf) {
-        return cf.forEachUniquePair(Schicht.class, Joiners.equal(Schicht::getMitarbeiter))
-                .filter((s1, s2) -> {
-                    LocalDateTime end = s1.getEndDateTime();
-                    LocalDateTime start = s2.getStartDateTime();
-                    if (start.isBefore(end)) { end = s2.getEndDateTime(); start = s1.getStartDateTime(); }
-                    return Duration.between(end, start).toHours() < 11;
-                })
-                .penalize(HardSoftLongScore.ofHard(PENALTY_HARD))
-                .asConstraint("Weniger als 11 Stunden Ruhezeit");
-    }
-
-    // =================================================================================
-    // SOFT CONSTRAINTS
-    // =================================================================================
-
-
-    /**
-     * SOFT-REGEL: Mitarbeiter sollen möglichst die ganze Woche beim gleichen Schicht-Typ bleiben.
-     * Das erzeugt die gewünschten "Blöcke", ohne starr zu sein.
-     */
-    private Constraint bevorzugeEineSchichtartProWoche(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null)
-                // Gruppiert pro Mitarbeiter, pro Woche, die verschiedenen Schicht-Typen, die er arbeitet
-                .groupBy(Schicht::getMitarbeiter,
-                        s -> s.getDatum().get(WeekFields.ISO.weekOfWeekBasedYear()),
-                        ConstraintCollectors.toSet(Schicht::getSchichtTyp))
-                // Bestrafe es, wenn ein Mitarbeiter in einer Woche mehr als EINEN Schicht-Typ hat
-                .filter((mitarbeiter, woche, schichtTypen) -> schichtTypen.size() > 1)
-                .penalize(HardSoftLongScore.ofSoft(PENALTY_MEDIUM),
-                        (mitarbeiter, woche, schichtTypen) -> schichtTypen.size() - 1)
-                .asConstraint("Bevorzuge eine Schichtart pro Woche");
-    }
-
+    // NEUE WICHTIGSTE REGEL: Bestraft die Abweichung von der monatlichen Soll-Stundenzahl.
     /** Wichtigste Soft-Regel: Möglichst nah an die vertraglichen Gesamtstunden kommen. */
-    protected Constraint abweichungVonSollStundenMinimieren(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null && s.getMitarbeiter().getWochenstunden() > 0)
-                .groupBy(Schicht::getMitarbeiter, ConstraintCollectors.sumLong(Schicht::getArbeitszeitInMinuten))
-                // KORREKTUR: Die moderne Schreibweise ohne den String am Anfang verwenden
-                .penalizeLong(HardSoftLongScore.ofSoft(PENALTY_LOW),
-                        (mitarbeiter, totalMinutes) -> {
-                            long targetMinutes = (long) (mitarbeiter.getWochenstunden() * 60L * 4.0); // 4 Wochen Plan
-                            long diff = Math.abs(totalMinutes - targetMinutes);
-                            return diff * diff; // Quadratische Bestrafung macht große Abweichungen sehr teuer
+    private Constraint abweichungVonSollStundenMinimieren(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+                // 1. Nimm nur die Muster, die einem Mitarbeiter zugewiesen sind
+                .filter(muster -> muster.getMitarbeiter() != null)
+                // 2. Gruppiere sie nach diesem Mitarbeiter und summiere die Stunden der zugewiesenen Muster
+                .groupBy(Arbeitsmuster::getMitarbeiter, ConstraintCollectors.sum(Arbeitsmuster::getWochenstunden))
+                // 3. Bestrafe die Abweichung von der vertraglichen Soll-Stundenzahl
+                .penalizeLong(HardSoftLongScore.ofSoft(PENALTY_HIGH), // Hohe Strafe, da dies das Hauptziel ist
+                        (mitarbeiter, tatsaechlicheStunden) -> {
+                            // Zielstunden für den gesamten Planungszeitraum (Annahme: 4 Wochen)
+                            long sollStunden = (long) mitarbeiter.getWochenstunden() * 4;
+                            long abweichung = Math.abs(tatsaechlicheStunden - sollStunden);
+                            // Quadratische Strafe, damit große Abweichungen sehr teuer werden
+                            return abweichung * abweichung;
                         })
-                .asConstraint("Abweichung von Soll-Stunden"); // KORREKTUR: .asConstraint() am Ende
+                .asConstraint("Abweichung von monatlichen Soll-Stunden");
     }
 
-    protected Constraint unbesetzteSchichtenBestrafen(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(schicht -> schicht.getMitarbeiter() == null)
-                .penalize(HardSoftLongScore.ofSoft(PENALTY_MEDIUM))
-                .asConstraint("Unbesetzte Schicht");
+    // GEÄNDERT: Ist jetzt eine SOFT-Regel. Es ist "schlecht", aber nicht "verboten".
+    private Constraint mitarbeiterPasstZuMuster(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+            .filter(muster -> muster.getMitarbeiter() != null && !istMitarbeiterFuerMusterGeeignet(muster.getMitarbeiter(), muster))
+            .penalize(HardSoftLongScore.ofHard(PENALTY_HARD))
+            .asConstraint("Mitarbeiter passt nicht zum Arbeitsmuster");
     }
 
-    /** Wichtigste Soft-Regel: Möglichst nah an die vertraglichen Gesamtstunden kommen. */
-    protected Constraint wochenstundenSollErreichtWerden(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null && s.getMitarbeiter().getWochenstunden() > 0)
-                .groupBy(Schicht::getMitarbeiter, ConstraintCollectors.sumLong(Schicht::getArbeitszeitInMinuten))
-                .penalizeLong("Abweichung von Soll-Stunden", HardSoftLongScore.ofSoft(PENALTY_LOW),
-                        (mitarbeiter, totalMinutes) -> {
-                            long targetMinutes = (long) (mitarbeiter.getWochenstunden() * 60L * 4.0); // 4 Wochen Plan
-                            return Math.abs(totalMinutes - targetMinutes);
-                        });
+    // GEÄNDERT: Danieles Sequenz ist jetzt ein starker Wunsch (SOFT), kein hartes Verbot.
+    private Constraint danieleWochenendSequenz(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+            // Finde eine zugewiesene Woche 1
+            .filter(muster1 -> muster1.getMitarbeiter() != null && muster1.getMusterTyp().equals("DANIELE_WE_WOCHE_1"))
+            // Prüfe, ob es für denselben Mitarbeiter in der Folgewoche KEINE Woche 2 gibt
+            .ifNotExists(Arbeitsmuster.class,
+                Joiners.equal(Arbeitsmuster::getMitarbeiter),
+                Joiners.equal(muster -> muster.getWocheImJahr() + 1, Arbeitsmuster::getWocheImJahr),
+                // Die Folgewoche MUSS vom Typ DANIELE_WE_WOCHE_2 sein
+                Joiners.filtering((muster1, muster2) -> muster2.getMusterTyp().equals("DANIELE_WE_WOCHE_2"))
+            )
+            .penalize(HardSoftLongScore.ofHard(PENALTY_HIGH))
+            .asConstraint("Daniele muss nach WE-Woche 1 eine WE-Woche 2 haben");
     }
 
-    protected Constraint wochenendeImmerZusammenHalten(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null && (s.getDatum().getDayOfWeek() == DayOfWeek.SATURDAY || s.getDatum().getDayOfWeek() == DayOfWeek.SUNDAY))
-                .groupBy(Schicht::getMitarbeiter, s -> s.getDatum().get(WeekFields.ISO.weekOfWeekBasedYear()),
-                         ConstraintCollectors.toSet(s -> s.getDatum().getDayOfWeek()))
-                .filter((mitarbeiter, woche, tage) -> tage.size() == 1)
-                .penalize(HardSoftLongScore.ofSoft(PENALTY_MEDIUM))
-                .asConstraint("Wochenende als Paar");
+    // Soft-Regel: Verteilt die Wochenend-Dienste fair. (BLEIBT SOFT)
+    private Constraint fairnessBeiWochenenden(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+            .filter(muster -> muster.getMitarbeiter() != null && muster.getMusterTyp().contains("CVD_WE_"))
+            .groupBy(Arbeitsmuster::getMitarbeiter, ConstraintCollectors.count())
+            .penalize(HardSoftLongScore.ofSoft(PENALTY_LOW), (mitarbeiter, anzahl) -> anzahl * anzahl)
+            .asConstraint("Faire Verteilung der Wochenend-Dienste");
+    }
+    private Constraint unbesetzteMusterBestrafen(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+            .filter(muster -> muster.getMitarbeiter() == null)
+            .penalize(HardSoftLongScore.ofSoft(PENALTY_HIGH))
+            .asConstraint("Unbesetztes Arbeitsmuster");
     }
 
-    protected Constraint nichtMehrAlsFuenfTageAmStueckArbeiten(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null)
-                .groupBy(Schicht::getMitarbeiter, ConstraintCollectors.toList())
-                // KORREKTUR: Die moderne Schreibweise ohne den String am Anfang verwenden
-                .penalizeLong(HardSoftLongScore.ofSoft(PENALTY_LOW),
-                        (mitarbeiter, schichtListe) -> {
-                            schichtListe.sort(Comparator.comparing(Schicht::getDatum));
-                            long penalty = 0, consecutiveDays = 1;
-                            LocalDate previousDate = null;
-                            for (Schicht schicht : schichtListe) {
-                                LocalDate date = schicht.getDatum();
-                                if (previousDate != null && !date.isEqual(previousDate)) {
-                                    if (ChronoUnit.DAYS.between(previousDate, date) == 1) {
-                                        consecutiveDays++;
-                                    } else {
-                                        consecutiveDays = 1;
-                                    }
-                                    if (consecutiveDays > 5) {
-                                        penalty++;
-                                    }
-                                }
-                                previousDate = date;
-                            }
-                            return penalty;
-                        })
-                .asConstraint("Mehr als 5 Tage am Stück arbeiten"); // KORREKTUR: .asConstraint() am Ende
-    }
-    
-    protected Constraint cvdDiensteGleichmaessigVerteilen(ConstraintFactory cf) {
-        return cf.forEach(Schicht.class)
-                .filter(s -> s.getMitarbeiter() != null && s.getSchichtTyp().contains("CVD"))
-                .groupBy(Schicht::getMitarbeiter, ConstraintCollectors.count())
-                .penalizeLong(HardSoftLongScore.ofSoft(PENALTY_LOW), (mitarbeiter, count) -> count * count)
-                .asConstraint("Ungleiche Verteilung der CvD-Dienste");
-    }
+    // GEÄNDERT: Die harte Stundenprüfung ist raus!
+    private boolean istMitarbeiterFuerMusterGeeignet(Mitarbeiter mitarbeiter, Arbeitsmuster muster) {
+        String musterTyp = muster.getMusterTyp();
+        
 
-    // =================================================================================
-    // HILFSMETHODEN
-    // =================================================================================
-    
-    private boolean erfuelltFachlicheQualifikation(Mitarbeiter mitarbeiter, Schicht schicht) {
-        String schichtTyp = schicht.getSchichtTyp();
-        if (schichtTyp != null && schichtTyp.contains("CVD")) {
-            return mitarbeiter.hasQualification("CVD_QUALIFIKATION");
+        if (musterTyp.equals("TZ_19H")) {
+            return mitarbeiter.hasQualification("WerkstudentIn");
+        }   
+        if (musterTyp.startsWith("DANIELE_")) {
+            return mitarbeiter.hasQualification("DANIELE_SONDERDIENST");
         }
-        return true;
-    }
-
-    private boolean istSchichtFuerMitarbeiterZulaessig(Mitarbeiter mitarbeiter, Schicht schicht) {
-        int wochenstunden = mitarbeiter.getWochenstunden();
-        String schichtTyp = schicht.getSchichtTyp();
-
-        if (wochenstunden >= 32) {
-            // 40h-Kräfte sollen nur 8h-Dienste oder CvD-Dienste machen
-            return schichtTyp.equals("8-Stunden-Dienst") || schichtTyp.contains("CVD");
+        if (mitarbeiter.hasQualification("DANIELE_SONDERDIENST")) {
+            return false;
         }
-        if (wochenstunden == 30) {
-            // 30-39h-Kräfte können 8h oder 6h
-            return schichtTyp.equals("6-Stunden-Dienst");
+        if (musterTyp.equals("LIBE_SONDERDIENST")) {
+            return mitarbeiter.hasQualification("LIBE_SONDERDIENST");
         }
-        if (wochenstunden == 24) {
-            // 20-29h-Kräfte können 8h, 6h, 4h
-            return schichtTyp.equals("8-Stunden-Dienst");
+        if (musterTyp.equals("ADMIN_40H")) {
+            return mitarbeiter.hasQualification("NonOps");
         }
-        if (wochenstunden == 20) {
-            // Alle darunter können alles unter 8h machen
-            return schichtTyp.equals("8-Stunden-Dienst") || schichtTyp.equals("4-Stunden-Dienst");
+        if (musterTyp.equals("CVD_WE_SPAET")) {
+            return mitarbeiter.hasQualification("CVD_WE_SPAET");
         }
-        if (wochenstunden < 20) {
-            // Alle darunter können alles unter 8h machen
-            return schichtTyp.equals("8-Stunden-Dienst");
+        if (musterTyp.equals("CVD_WE_FRUEH")) {
+            return mitarbeiter.hasQualification("CVD_WE_FRUEH");
         }
-        return true; // Fallback
+        if (musterTyp.equals("CVD_SPAET")) {
+            return mitarbeiter.hasQualification("CVD_SPAET");
+        }
+        if (musterTyp.equals("CVD_FRUEH")) {
+            return mitarbeiter.hasQualification("CVD_FRUEH");
+        }
+        if (musterTyp.equals("KERNDIENST_WE_REDAKTION")) {
+            return mitarbeiter.hasQualification("REDAKTION");
+        }
+        if (musterTyp.equals("KERNDIENST_AUSGLEICH_REDAKTION")) {
+            return mitarbeiter.hasQualification("REDAKTION");
+        }
+        if (musterTyp.equals("REDAKTION_40H")) {
+            return mitarbeiter.hasQualification("REDAKTION");
+        }
+        if (mitarbeiter.getWochenstunden() != muster.getWochenstunden()) {
+            return false;
+        }
+        if (musterTyp.startsWith("TZ_")) { // Allgemeine Regel für alle Teilzeit-Muster
+            return true; // Stunden wurden ja schon geprüft
+        }
+        return false;
     }
 }

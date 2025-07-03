@@ -412,21 +412,32 @@ app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) 
 
 function generateSchichtplanCSV(solution) {
     // 1. Sicherheitsabfrage für die neue Datenstruktur
-    if (!solution || !solution.mitarbeiterList || !solution.schichtList) {
+    if (!solution || !solution.mitarbeiterList || !solution.arbeitsmusterList) {
         console.error("[CSV_GENERATOR] Ungültige Lösung für CSV-Export: Listen fehlen.", solution);
-        return ""; // Gibt einen leeren String zurück, um eine leere Datei zu erzeugen
+        return "";
     }
 
-    // 2. Sammle alle einzigartigen Daten aus der neuen schichtList
+    // 2. Entpacke alle zugewiesenen Schichten aus den Mustern in eine einzige, flache Liste
+    const alleZugewiesenenSchichten = solution.arbeitsmusterList
+        .filter(muster => muster.mitarbeiter) // Nimm nur Muster, die einem Mitarbeiter zugewiesen sind
+        .flatMap(muster => {
+            // Wichtig: Füge den Mitarbeiter des Musters zu jeder Einzelschicht hinzu!
+            return muster.schichten.map(schicht => ({
+                ...schicht, // Kopiere alle Eigenschaften der Schicht
+                mitarbeiter: muster.mitarbeiter // Füge den Mitarbeiter hinzu
+            }));
+        });
+        
+    // 3. Sammle alle einzigartigen Daten für den Header
     const allDates = new Set();
-    solution.schichtList.forEach(schicht => {
+    alleZugewiesenenSchichten.forEach(schicht => {
         if (schicht.datum) {
-            allDates.add(schicht.datum); // Datum im Format YYYY-MM-DD
+            allDates.add(schicht.datum);
         }
     });
     const sortedDates = Array.from(allDates).sort();
 
-    // 3. Erstelle den kompletten Header, so wie dein Frontend ihn erwartet
+    // 4. Erstelle den kompletten Header
     let csvHeaders = [
         "NutzerID", "Nachname", "Vorname", "E-Mail", "Stellenbezeichnung",
         "Ressort", "CVD", "Qualifikationen", "Teams", "Notizen",
@@ -434,32 +445,28 @@ function generateSchichtplanCSV(solution) {
     ];
     sortedDates.forEach(date => {
         const [year, month, day] = date.split('-');
-        const displayDate = `${day}.${month}.`; // Format: DD.MM.
+        const displayDate = `${day}.${month}.`;
         csvHeaders.push(`${displayDate} Von`);
         csvHeaders.push(`${displayDate} Bis`);
     });
     let csvContent = csvHeaders.join(";") + "\n";
 
-    // 4. Gruppiere die Schichten pro Mitarbeiter für einfache Verarbeitung
+    // 5. Gruppiere die Schichten pro Mitarbeiter für die Berechnungen
     const schichtenProMitarbeiter = {};
-    solution.schichtList.forEach(schicht => {
-        if (schicht.mitarbeiter && schicht.mitarbeiter.id) {
-            const mitarbeiterId = schicht.mitarbeiter.id;
-            if (!schichtenProMitarbeiter[mitarbeiterId]) {
-                schichtenProMitarbeiter[mitarbeiterId] = [];
-            }
-            schichtenProMitarbeiter[mitarbeiterId].push(schicht);
+    alleZugewiesenenSchichten.forEach(schicht => {
+        const mitarbeiterId = schicht.mitarbeiter.id;
+        if (!schichtenProMitarbeiter[mitarbeiterId]) {
+            schichtenProMitarbeiter[mitarbeiterId] = [];
         }
+        schichtenProMitarbeiter[mitarbeiterId].push(schicht);
     });
-    
-    // 5. Erstelle eine Zeile für jeden Mitarbeiter
+
+    // 6. Erstelle eine Zeile für jeden Mitarbeiter
     solution.mitarbeiterList.forEach(mitarbeiter => {
         const zugewieseneSchichten = schichtenProMitarbeiter[mitarbeiter.id] || [];
         
-        // Berechne MonatsSumme und Delta
         const monatsSummeMinuten = zugewieseneSchichten.reduce((sum, schicht) => sum + (schicht.arbeitszeitInMinuten || 0), 0);
         const monatsSummeStunden = monatsSummeMinuten / 60.0;
-        // Annahme: 4 Wochen Planungszeitraum für Delta-Berechnung
         const sollStunden = mitarbeiter.wochenstunden * 4.0;
         const delta = monatsSummeStunden - sollStunden;
 

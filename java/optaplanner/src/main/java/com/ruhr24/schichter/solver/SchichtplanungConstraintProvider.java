@@ -23,6 +23,8 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 // ==== HARD CONSTRAINTS (Nur noch absolute K.O.-Kriterien) ====
                 einMusterProWocheProMitarbeiter(cf),
                 mitarbeiterPasstZuMuster(cf),
+                cvdWochenendSequenz(cf),
+                kernWochenendSequenz(cf),
 
                 // ==== SOFT CONSTRAINTS (Unsere Wünsche, nach Priorität geordnet) ====
                 // Prio 1: Die Gesamtstunden müssen am Ende stimmen!
@@ -84,6 +86,32 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
             )
             .penalize(HardSoftLongScore.ofHard(PENALTY_HIGH))
             .asConstraint("Daniele muss nach WE-Woche 1 eine WE-Woche 2 haben");
+    }
+    private Constraint cvdWochenendSequenz(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+            // Finde eine zugewiesene Woche 1
+            .filter(muster1 -> muster1.getMitarbeiter() != null && muster1.getMusterTyp().contains("CVD_WE_"))
+            // Prüfe, ob es für denselben Mitarbeiter in der Folgewoche KEINE Woche 2 gibt
+            .ifNotExists(Arbeitsmuster.class,
+                Joiners.equal(Arbeitsmuster::getMitarbeiter),
+                Joiners.equal(muster -> muster.getWocheImJahr() + 1, Arbeitsmuster::getWocheImJahr),
+                Joiners.filtering((muster1, muster2) -> muster2.getMusterTyp().equals("CVD_AUSGLEICH_WOCHE"))
+            )
+            .penalize(HardSoftLongScore.ofHard(PENALTY_HARD))
+            .asConstraint("CvD muss nach WE-Woche 1 eine Ausgleichs-Woche 2 haben");
+    }
+    private Constraint kernWochenendSequenz(ConstraintFactory cf) {
+        return cf.forEach(Arbeitsmuster.class)
+            // Finde eine zugewiesene Woche 1
+            .filter(muster1 -> muster1.getMitarbeiter() != null && muster1.getMusterTyp().contains("REDAKTION_WE_WOCHE_1"))
+            // Prüfe, ob es für denselben Mitarbeiter in der Folgewoche KEINE Woche 2 gibt
+            .ifNotExists(Arbeitsmuster.class,
+                Joiners.equal(Arbeitsmuster::getMitarbeiter),
+                Joiners.equal(muster -> muster.getWocheImJahr() + 1, Arbeitsmuster::getWocheImJahr),
+                Joiners.filtering((muster1, muster2) -> muster2.getMusterTyp().equals("REDAKTION_AUSGLEICH_WOCHE_2"))
+            )
+            .penalize(HardSoftLongScore.ofHard(PENALTY_HARD))
+            .asConstraint("KERN muss nach WE-Woche 1 eine Ausgleichs-Woche 2 haben");
     }
 
     // Soft-Regel: Verteilt die Wochenend-Dienste fair. (BLEIBT SOFT)

@@ -3,6 +3,7 @@ package com.ruhr24.schichter.domain;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
 import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty; // WICHTIG: Dieser Import
+import org.optaplanner.core.api.domain.solution.ProblemFactProperty;
 import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore; // RICHTIG!
 import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
@@ -85,6 +86,11 @@ public class SchichtPlan {
         return id;
     }
 
+    @ProblemFactProperty
+    public LocalDate getEndDatum() {
+        return this.bis;
+    }
+    
     public void setId(UUID id) {
         this.id = id;
     }

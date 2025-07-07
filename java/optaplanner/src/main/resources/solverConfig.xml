@@ -9,20 +9,21 @@
         </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>60</secondsSpentLimit>
+       <secondsSpentLimit>6000</secondsSpentLimit>
     </termination>
 
     <constructionHeuristic>
-        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
+        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
     </constructionHeuristic>
 
     <localSearch>
-        <localSearchType>TABU_SEARCH</localSearchType>
-        
-        <unionMoveSelector>
-            <changeMoveSelector/>
-            <swapMoveSelector/>
-        </unionMoveSelector>
+        <acceptor>
+            <entityTabuSize>5</entityTabuSize>
+            <lateAcceptanceSize>400</lateAcceptanceSize>
+        </acceptor>
+        <forager>
+            <acceptedCountLimit>1000</acceptedCountLimit>
+        </forager>
     </localSearch>
 
 </solver>

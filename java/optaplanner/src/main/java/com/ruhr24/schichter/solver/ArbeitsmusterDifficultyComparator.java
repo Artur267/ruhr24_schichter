@@ -32,7 +32,7 @@ public class ArbeitsmusterDifficultyComparator implements Comparator<Arbeitsmust
         }
         // Spezifische Teilzeit-Muster sind wichtiger als generische
         if (typ.startsWith("TZ_")) { 
-            return 20;
+            return 90;
         }
         // Standard-Muster (Admin, CvD-Kern) sind am einfachsten
         return 10; 

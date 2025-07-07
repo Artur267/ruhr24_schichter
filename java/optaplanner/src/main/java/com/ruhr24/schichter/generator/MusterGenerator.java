@@ -8,9 +8,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.WeekFields;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class MusterGenerator {
 
@@ -28,17 +31,17 @@ public class MusterGenerator {
         Wochenend-Dienst        08:00 - 16:30 
     */
     private static final int ADMIN_WOCHEN_PRO_WOCHE = 10;
-    private static final int REDAKTION_WOCHEN_PRO_WOCHE = 16;
-    private static final int REDAKTION_WE_BLOECKE_PRO_MONAT = 5;
-    private static final int CVD_KERN_WOCHEN_PRO_WOCHE = 11;
-    private static final int CVD_FRUEH_WOCHEN_PRO_WOCHE = 1;
-    private static final int CVD_SPAET_WOCHEN_PRO_WOCHE = 1;
-    private static final int CVD_WE_FRUEH_PRO_WOCHE = 1;
-    private static final int CVD_WE_SPAET_PRO_WOCHE = 1;
+    private static final int REDAKTION_WOCHEN_PRO_WOCHE = 14;
+    //private static final int REDAKTION_WE_BLOECKE_PRO_MONAT = 5;
+    private static final int CVD_KERN_WOCHEN_PRO_WOCHE = 9;
+    //private static final int CVD_FRUEH_WOCHEN_PRO_WOCHE = 1;
+    //private static final int CVD_SPAET_WOCHEN_PRO_WOCHE = 1;
+    //private static final int CVD_WE_FRUEH_PRO_WOCHE = 1;
+    //private static final int CVD_WE_SPAET_PRO_WOCHE = 1;
     private static final int TZ_30H_WOCHEN_PRO_WOCHE = 1;
     private static final int TZ_24H_WOCHEN_PRO_WOCHE = 1;
     private static final int TZ_20H_WOCHEN_PRO_WOCHE = 2;
-    private static final int TZ_19H_WOCHEN_PRO_WOCHE = 4;
+    private static final int TZ_19H_WOCHEN_PRO_WOCHE = 6;
     private static final int TZ_15H_WOCHEN_PRO_WOCHE = 2;
     private static final int TZ_10H_WOCHEN_PRO_WOCHE = 1;
 
@@ -46,67 +49,78 @@ public class MusterGenerator {
     public List<Arbeitsmuster> generate(LocalDate von, LocalDate bis, List<Mitarbeiter> mitarbeiterList) {
         List<Arbeitsmuster> musterPool = new ArrayList<>();
         LocalDate startWoche = von.with(DayOfWeek.MONDAY);
-        
-        boolean danieleWochenendeGeplant = false;
-        LocalDate startDerWocheFuerDaniele = von.with(DayOfWeek.MONDAY);
-            while (startDerWocheFuerDaniele.isBefore(bis)) {
-                int woche = startDerWocheFuerDaniele.get(WeekFields.of(Locale.GERMANY).weekOfWeekBasedYear());
-
-                if (!danieleWochenendeGeplant) {
-                    musterPool.add(createDanieleWochenendWoche1(woche, startDerWocheFuerDaniele));
-                    startDerWocheFuerDaniele = startDerWocheFuerDaniele.plusWeeks(1);
-                    woche = startDerWocheFuerDaniele.get(WeekFields.of(Locale.GERMANY).weekOfWeekBasedYear());
-                    musterPool.add(createDanieleWochenendWoche2(woche, startDerWocheFuerDaniele));
-                    danieleWochenendeGeplant = true;
-                } else {
-                    musterPool.add(createDanieleNormalwoche(woche, startDerWocheFuerDaniele));
-                }
-                startDerWocheFuerDaniele = startDerWocheFuerDaniele.plusWeeks(1);
-            }
-
-        while (startWoche.isBefore(bis)) {
+        while (!startWoche.isAfter(bis)) {
             int wocheDesJahres = startWoche.get(WeekFields.of(Locale.GERMANY).weekOfWeekBasedYear());
-            
-            for (int i = 0; i < ADMIN_WOCHEN_PRO_WOCHE; i++) musterPool.add(createAdminWoche(wocheDesJahres, startWoche));
-            for (int i = 0; i < CVD_KERN_WOCHEN_PRO_WOCHE; i++) musterPool.add(createCvdWoche(wocheDesJahres, startWoche, "CVD_KERN"));
+            LocalDate naechsteWoche = startWoche.plusWeeks(1);
+
+            //CVD Mo - Fr
             musterPool.add(createCvdWoche(wocheDesJahres, startWoche, "CVD_FRUEH"));
             musterPool.add(createCvdWoche(wocheDesJahres, startWoche, "CVD_SPAET"));
-            
-            //musterPool.add(createCvdWochenende(wocheDesJahres, startWoche, "CVD_WE_FRUEH"));
-            //musterPool.add(createCvdWochenende(wocheDesJahres, startWoche, "CVD_WE_SPAET"));
 
-            for (int i = 0; i < REDAKTION_WOCHEN_PRO_WOCHE; i++) {
+            //Wochenend-Dienste CVD
+            musterPool.add(createCvdWochenende(wocheDesJahres, startWoche, "CVD_WE_FRUEH"));
+            musterPool.add(createCvdWochenende(wocheDesJahres, startWoche, "CVD_WE_SPAET"));
+            musterPool.add(createRedaktionWochenendWoche(wocheDesJahres, startWoche));
+            musterPool.add(createRedaktionWochenendWoche(wocheDesJahres, startWoche));
+
+            //Abfrage für erste Woche, da gibt es ja keinen ausgleich
+            if (startWoche.isEqual(von)) {
+                musterPool.add(createCvdWoche(wocheDesJahres, startWoche, "CVD_KERN"));
+                musterPool.add(createCvdWoche(wocheDesJahres, startWoche, "CVD_KERN"));
+                musterPool.add(createRedaktionWoche(wocheDesJahres, startWoche));
                 musterPool.add(createRedaktionWoche(wocheDesJahres, startWoche));
             }
 
+            if (!naechsteWoche.isAfter(bis)) {
+                int wocheDanach = naechsteWoche.get(WeekFields.of(Locale.GERMANY).weekOfWeekBasedYear());
+                musterPool.add(createCvdAusgleichWoche(wocheDanach, naechsteWoche));
+                musterPool.add(createCvdAusgleichWoche(wocheDanach, naechsteWoche));
+                musterPool.add(createRedaktionAusgleichWoche(wocheDanach, naechsteWoche));
+                musterPool.add(createRedaktionAusgleichWoche(wocheDanach, naechsteWoche));
+            }
+        
+
+            //Standardmuster
+            for (int i = 0; i < ADMIN_WOCHEN_PRO_WOCHE; i++) {
+                musterPool.add(createAdminWoche(wocheDesJahres, startWoche));
+            }
+            for (int i = 0; i < CVD_KERN_WOCHEN_PRO_WOCHE; i++) {
+                musterPool.add(createCvdWoche(wocheDesJahres, startWoche, "CVD_KERN"));
+            }
+            for (int i = 0; i < REDAKTION_WOCHEN_PRO_WOCHE; i++) {
+                musterPool.add(createRedaktionWoche(wocheDesJahres, startWoche));
+            }
+            for (int i = 0; i < TZ_19H_WOCHEN_PRO_WOCHE; i++) {
+                musterPool.add(createTeilzeitWoche19h(wocheDesJahres, startWoche));
+            }
+
+            //Sonderfälle
+            musterPool.add(createDanieleNormalwoche(wocheDesJahres, startWoche));
             musterPool.add(createLisaBenderWoche(wocheDesJahres, startWoche));
             musterPool.add(createTeilzeitWoche30h(wocheDesJahres, startWoche));
-            musterPool.add(createTeilzeitWoche24h(wocheDesJahres, startWoche));
-            for (int i = 0; i < TZ_20H_WOCHEN_PRO_WOCHE; i++) musterPool.add(createTeilzeitWoche20h(wocheDesJahres, startWoche));
-            for (int i = 0; i < TZ_19H_WOCHEN_PRO_WOCHE; i++) musterPool.add(createTeilzeitWoche19h(wocheDesJahres, startWoche));
-            for (int i = 0; i < TZ_15H_WOCHEN_PRO_WOCHE; i++) musterPool.add(createTeilzeitWoche15h(wocheDesJahres, startWoche));
-            for (int i = 0; i < TZ_10H_WOCHEN_PRO_WOCHE; i++) musterPool.add(createTeilzeitWoche10h(wocheDesJahres, startWoche));
-            
-            //for (int i = 0; i < 2; i++) { // Erstelle 2 Blöcke für den Monat
-                //if (startWoche.plusWeeks(1).isBefore(bis)) { // Nur wenn noch eine Folgewoche da ist
-            musterPool.add(createRedaktionWochenendWoche(wocheDesJahres, startWoche));
-            musterPool.add(createRedaktionAusgleichWoche(wocheDesJahres + 1, startWoche.plusWeeks(1)));
-            musterPool.add(createRedaktionWochenendWoche(wocheDesJahres, startWoche));
-            musterPool.add(createRedaktionAusgleichWoche(wocheDesJahres + 1, startWoche.plusWeeks(1)));
-                //}
-            //}
-
-            //for (int i = 0; i < 2; i++) { // Erstelle 2 Blöcke für den Monat
-                //if (startWoche.plusWeeks(1).isBefore(bis)) { // Nur wenn noch eine Folgewoche da ist
-            musterPool.add(createCvdWochenende(wocheDesJahres, startWoche, "CVD_WE_FRUEH"));
-            musterPool.add(createCvdWochenende(wocheDesJahres, startWoche, "CVD_WE_SPAET"));
-            musterPool.add(createCvdAusgleichWoche(wocheDesJahres + 1, startWoche.plusWeeks(1)));
-            musterPool.add(createCvdAusgleichWoche(wocheDesJahres + 1, startWoche.plusWeeks(1)));
-                //}
-            //}
-            
+            musterPool.add(createTeilzeitWoche20h(wocheDesJahres, startWoche));
+            musterPool.add(createTeilzeitWoche20h(wocheDesJahres, startWoche));
+            musterPool.add(createTeilzeitWoche15h(wocheDesJahres, startWoche));
+            musterPool.add(createTeilzeitWoche15h(wocheDesJahres, startWoche));
+            musterPool.add(createTeilzeitWoche10h(wocheDesJahres, startWoche));
             startWoche = startWoche.plusWeeks(1);
+
         }
+
+        System.out.println("--- Erstellte Arbeitsmuster ---");
+        for (Arbeitsmuster muster : musterPool) {
+            System.out.println(
+                String.format("Woche: %d, Typ: %-30s, Stunden: %d, Schichten: %d",
+                    muster.getWocheImJahr(),
+                    "'" + muster.getMusterTyp() + "'",
+                    muster.getWochenstunden(),
+                    muster.getSchichten().size()
+                )
+            );
+        }
+
+        System.out.println("===============================");
+        System.out.println("Gesamtanzahl erstellter Muster: " + musterPool.size());
         return musterPool;
     }
 

@@ -140,15 +140,27 @@ public class SolverController {
 
     @GetMapping("/planungs-ergebnis/{problemId}")
     public ResponseEntity<?> getSolution(@PathVariable UUID problemId) {
+        // Prüfe zuerst auf Fehler
         if (solutionStore.hasError(problemId)) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", solutionStore.getError(problemId).getMessage()));
         }
-        if (solutionStore.hasSolution(problemId)) {
-            SchichtPlan solution = solutionStore.getSolution(problemId);
-            SolverStatus status = solverManager.getSolverStatus(problemId);
-            return (status == SolverStatus.NOT_SOLVING) ? ResponseEntity.ok(solution) : ResponseEntity.status(HttpStatus.ACCEPTED).body(solution);
+
+        SchichtPlan solution = solutionStore.getSolution(problemId);
+        SchichtPlan problem = solutionStore.getProblem(problemId);
+        SolverStatus status = solverManager.getSolverStatus(problemId);
+
+        // Fall 1: Weder Problem noch Lösung bekannt -> Echter 404
+        if (problem == null && solution == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Planung mit dieser ID existiert nicht."));
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Planung nicht gefunden."));
+
+        // Fall 2: Der Solver ist fertig.
+        if (status == SolverStatus.NOT_SOLVING) {
+            return ResponseEntity.ok(solution); // Gib die finale Lösung zurück
+        }
+
+        // Fall 3: Der Solver läuft noch. Gib eine "Accepted"-Antwort mit dem Zwischenstand.
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(solution != null ? solution : problem);
     }
     
     private void saveSolutionToCsv(SchichtPlan schichtPlan) {

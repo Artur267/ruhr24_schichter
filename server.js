@@ -64,95 +64,53 @@ function saveEmployees(data) {
 }
 
 async function parseCSV(filePath) {
-    const results = [];
-    let dates = []; // Speichert die Datum-Header (z.B. "28.04.")
-    let actualHeaders = []; // Speichert die echten Header-Namen der ersten Zeile
-
     return new Promise((resolve, reject) => {
-        fs.createReadStream(filePath, { encoding: 'utf8' }) // UTF-8 Encoding hinzufügen!
-            .pipe(csv({ separator: ';', headers: false, ignoreEmpty: true })) // headers: false beibehalten
-            .on('data', (row) => {
-                const rowValues = Object.values(row);
+        const mitarbeiterDaten = [];
+        const results = [];
+        
+        fs.createReadStream(filePath)
+            .pipe(csv({ separator: ';' }))
+            .on('data', (data) => results.push(data))
+            .on('end', () => {
+                const headers = Object.keys(results[0] || {});
+                
+                // Extrahiere die Datumsspalten aus dem Header
+                const dateHeaders = headers.filter(h => h.endsWith(' Von')).map(h => h.replace(' Von', ''));
+                const datesISO = dateHeaders.map(dateStr => {
+                    const [day, month] = dateStr.split('.');
+                    return `${new Date().getFullYear()}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                });
 
-                // Erste Zeile ist der Header
-                if (results.length === 0 && rowValues[0] === 'NutzerID') { // Erkennen der Header-Zeile
-                    actualHeaders = rowValues.map(value => String(value).trim());
-
-                    // Datums-Header extrahieren
-                    // Beginne ab dem ersten Datum, z.B. "28.04. Von"
-                    const firstDateIndex = actualHeaders.findIndex(header => header.match(/^\d{2}\.\d{2}\. Von$/));
-                    if (firstDateIndex !== -1) {
-                         dates = actualHeaders
-                            .slice(firstDateIndex) // Schneide ab dem ersten Datum-Header ab
-                            .filter((_, index) => index % 2 === 0) // Nur die "Von"-Header behalten
-                            .map(value => String(value).trim().replace(' Von', '')) // " Von" entfernen, nur Datum behalten
-                            .filter(value => value !== '');
-                        // Sortiere die Daten chronologisch, falls sie nicht schon sortiert sind
-                        dates.sort((a, b) => {
-                            const [dayA, monthA] = a.split('.').map(Number);
-                            const [dayB, monthB] = b.split('.').map(Number);
-                            if (monthA !== monthB) return monthA - monthB;
-                            return dayA - dayB;
-                        });
-                    }
-                    // Diese Zeile ist der Header, also nicht als Mitarbeiter hinzufügen
-                    return;
-                }
-
-                // Datenzeilen verarbeiten
-                if (rowValues[0] !== 'NutzerID') { // Überspringe die Header-Zeile, wenn sie nicht die erste ist
-                    const mitarbeiter = {
-                        Arbeitszeiten: {}
-                    };
-
-                    // Annahme: Die Reihenfolge der Daten in rowValues entspricht den Spalten in actualHeaders
-                    // ACHTUNG: Die Indizes MÜSSEN zu deiner CSV-Datei passen!
-                    // Wenn die CSV-Datei 1:1 die gewünschte Struktur hat:
-                    mitarbeiter.id = String(rowValues[actualHeaders.indexOf('NutzerID')]).trim() || ''; // Oder rowValues[0] wenn "NutzerID" immer an erster Stelle steht
-                    mitarbeiter.nachname = String(rowValues[actualHeaders.indexOf('Nachname')]).trim() || '';
-                    mitarbeiter.vorname = String(rowValues[actualHeaders.indexOf('Vorname')]).trim() || '';
-                    mitarbeiter.email = String(rowValues[actualHeaders.indexOf('E-Mail')]).trim() || ''; // Richtig!
-                    mitarbeiter.stellenbezeichnung = String(rowValues[actualHeaders.indexOf('Stellenbezeichnung')]).trim() || ''; // Richtig!
-                    mitarbeiter.ressort = String(rowValues[actualHeaders.indexOf('Ressort')]).trim() || ''; // Richtig!
-                    mitarbeiter.cvd = (String(rowValues[actualHeaders.indexOf('CVD')]).trim().toLowerCase() === 'true' || String(rowValues[actualHeaders.indexOf('CVD')]).trim().toLowerCase() === 'ja'); // Richtig, als Boolean!
-                    // Rollen und Qualifikationen sowie Teams werden als kommaseparierter String erwartet
-                    mitarbeiter.rollenUndQualifikationen = String(rowValues[actualHeaders.indexOf('Qualifikationen')]).trim().split(',').map(s => s.trim()).filter(s => s !== '') || []; // Richtig, als Array!
-                    mitarbeiter.teamsUndZugehoerigkeiten = String(rowValues[actualHeaders.indexOf('Teams')]).trim().split(',').map(s => s.trim()).filter(s => s !== '') || []; // Richtig, als Array!
-                    mitarbeiter.notizen = String(rowValues[actualHeaders.indexOf('Notizen')]).trim() || '';
-                    mitarbeiter.wochenstunden = parseInt(String(rowValues[actualHeaders.indexOf('Wochenstunden')]).trim(), 10) || 0; // Richtig, als Zahl!
-                    mitarbeiter.monatsSumme = String(rowValues[actualHeaders.indexOf('MonatsSumme')]).trim() || '0,00';
-                    mitarbeiter.delta = String(rowValues[actualHeaders.indexOf('Delta')]).trim() || '0,00';
-                    // Die Felder MonatsSumme und Delta aus deinem neuen JSON-Snippet sind hier nicht aufgeführt.
-                    // Wenn sie in der CSV als separate Spalten existieren, füge sie hier hinzu:
-                    // mitarbeiter.monatsSumme = parseFloat(String(rowValues[actualHeaders.indexOf('MonatsSumme')]).replace(',', '.')).trim()) || 0;
-                    // mitarbeiter.delta = parseFloat(String(rowValues[actualHeaders.indexOf('Delta')]).replace(',', '.')).trim()) || 0;
-
-                    // Wenn "Wunschschichten" und "urlaubtageSet" auch in der CSV sind, füge sie hinzu
-                    mitarbeiter.wunschschichten = []; // Annahme: nicht direkt in CSV, sonst aus CSV lesen
-                    mitarbeiter.urlaubtageSet = []; // Annahme: nicht direkt in CSV, sonst aus CSV lesen
-
-
-                    // Verarbeite Arbeitszeiten basierend auf den dynamisch gefundenen Datums-Headern
-                    dates.forEach(dateKey => { // dateKey ist z.B. "28.04."
-                        const vonHeader = `${dateKey} Von`;
-                        const bisHeader = `${dateKey} Bis`;
-
-                        const vonIndex = actualHeaders.indexOf(vonHeader);
-                        const bisIndex = actualHeaders.indexOf(bisHeader);
-
-                        const vonValue = vonIndex !== -1 && rowValues[vonIndex] ? String(rowValues[vonIndex]).trim() : '';
-                        const bisValue = bisIndex !== -1 && rowValues[bisIndex] ? String(rowValues[bisIndex]).trim() : '';
-
-                        mitarbeiter.Arbeitszeiten[dateKey] = {
-                            Von: vonValue,
-                            Bis: bisValue
+                results.forEach(row => {
+                    const arbeitszeiten = {};
+                    datesISO.forEach((isoDate, index) => {
+                        const displayDate = dateHeaders[index];
+                        arbeitszeiten[isoDate] = {
+                            Von: row[`${displayDate} Von`] || '',
+                            Bis: row[`${displayDate} Bis`] || ''
                         };
                     });
-                    results.push(mitarbeiter);
-                }
+
+                    mitarbeiterDaten.push({
+                        NutzerID: row.NutzerID,
+                        Nachname: row.Nachname,
+                        Vorname: row.Vorname,
+                        Ressort: row.Ressort,
+                        CVD: row.CVD === 'true',
+                        Wochenstunden: parseInt(row.Wochenstunden, 10),
+                        MonatsSumme: row.MonatsSumme,
+                        Delta: row.Delta,
+                        Arbeitszeiten: arbeitszeiten
+                    });
+                });
+
+                resolve({
+                    mitarbeiterDaten: mitarbeiterDaten,
+                    dates: dateHeaders,
+                    datesISO: datesISO
+                });
             })
-            .on('end', () => resolve({ dates, mitarbeiterDaten: results }))
-            .on('error', reject);
+            .on('error', (error) => reject(error));
     });
 }
 
@@ -205,18 +163,34 @@ app.get('/schichtplan', async (req, res) => {
 
 app.get('/bearbeiten', async (req, res) => {
     try {
-        const csvDaten = await parseCSV(CALENDAR_CSV_PATH);
-        console.log("CSV-Daten für Bearbeiten geladen:", csvDaten);
+        const outputCsvPath = path.join(__dirname,'java','optaplanner', 'results', 'output.csv');
+        const csvDaten = await parseCSV(outputCsvPath);
+
         res.render('bearbeiten', {
             title: 'Mitarbeiter Schichtplan bearbeiten',
             dates: csvDaten.dates,
+            datesISO: csvDaten.datesISO,
             mitarbeiterDaten: csvDaten.mitarbeiterDaten
         });
     } catch (error) {
-        console.error('Fehler beim Laden der Daten für die Bearbeitungsseite:', error);
-        res.status(500).send('Fehler beim Anzeigen der Bearbeitungsseite.');
+        console.error('Fehler beim Laden der CSV-Daten für die Bearbeitungsseite:', error);
+        res.status(500).send('Fehler beim Laden der Plandaten.');
     }
 });
+
+// Hilfsfunktion, um die Datenaufbereitung zu kapseln
+async function parseCSVAndCreateDates(filePath) {
+    const csvDaten = await parseCSV(filePath); // Deine bestehende Funktion
+    const dates = csvDaten.dates; // Annahme: ['30.06.', ...]
+    const year = new Date().getFullYear();
+
+    const datesISO = dates.map(dateStr => {
+        const [day, month] = dateStr.replace('.', '').split('.');
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    });
+
+    return { mitarbeiterDaten: csvDaten.mitarbeiterDaten, dates, datesISO };
+}
 
 app.get('/richtlinien', (req, res) => {
     fs.readFile(RULES_PATH, 'utf-8', (err, data) => {
@@ -362,52 +336,59 @@ app.post('/save-schichtplan-csv', async (req, res) => {
     }
 });
 
-app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', express.json(), (req, res) => {
+app.post('/api/mitarbeiter/:nutzerId/arbeitszeiten', (req, res) => {
     const nutzerId = req.params.nutzerId;
     const arbeitszeiten = req.body;
 
-    console.log(`[SERVER] Speichern angefordert für Nutzer: ${nutzerId}`, arbeitszeiten);
+    console.log(`[SERVER] Speichern angefordert für Nutzer: ${nutzerId}`);
 
-    fs.readFile(CALENDAR_CSV_PATH, 'utf8', (err, data) => {
-        if (err) {
-            console.error('[SERVER] Fehler beim Lesen der CSV-Datei:', err);
-            return res.status(500).json({ error: 'Fehler beim Lesen der CSV-Datei.' });
-        }
+    try {
+        const data = fs.readFileSync(CALENDAR_CSV_PATH, 'utf8');
 
         const rows = data.trim().split('\n');
-        const header = rows[0].split(',');
-        const dataRows = rows.slice(1).map(row => row.split(','));
+        // KORREKTUR: Trennen mit Semikolon
+        const header = rows[0].split(';'); 
+        const dataRows = rows.slice(1).map(row => row.split(';'));
 
-        const mitarbeiterIndex = dataRows.findIndex(row => row[0] === nutzerId);
-
+        const mitarbeiterIndex = dataRows.findIndex(row => {
+            // KORREKTUR: Entferne mögliche Anführungszeichen aus der CSV-ID vor dem Vergleich
+            const idFromCsv = row[0].replace(/"/g, ''); 
+            return idFromCsv === nutzerId;
+        });
         if (mitarbeiterIndex !== -1) {
             const mitarbeiterRow = dataRows[mitarbeiterIndex];
-            const datesInHeader = header.slice(9).filter((_, index) => index % 2 === 0);
+            
+            // Finde die Indizes der Datumsspalten
+            const datesInHeader = header.slice(13).filter((_, index) => index % 2 === 0).map(h => h.replace(' Von', ''));
 
-            for (const datum in arbeitszeiten) {
-                const dateIndex = datesInHeader.indexOf(datum);
+            for (const datumISO in arbeitszeiten) {
+                // Konvertiere YYYY-MM-DD zu DD.MM. für den Abgleich
+                const [year, month, day] = datumISO.split('-');
+                const datumDeutsch = `${day}.${month}.`;
+
+                const dateIndex = datesInHeader.indexOf(datumDeutsch);
                 if (dateIndex !== -1) {
-                    const vonIndex = 9 + dateIndex * 2;
-                    const bisIndex = 10 + dateIndex * 2;
-                    mitarbeiterRow[vonIndex] = arbeitszeiten[datum].Von || '';
-                    mitarbeiterRow[bisIndex] = arbeitszeiten[datum].Bis || '';
+                    const vonIndex = 13 + dateIndex * 2;
+                    const bisIndex = vonIndex + 1;
+                    mitarbeiterRow[vonIndex] = arbeitszeiten[datumISO].Von || '';
+                    mitarbeiterRow[bisIndex] = arbeitszeiten[datumISO].Bis || '';
                 }
             }
 
-            const updatedCSV = [header.join(','), ...dataRows.map(row => row.join(','))].join('\n');
+            // KORREKTUR: Wieder mit Semikolon zusammenfügen
+            const updatedCSV = [header.join(';'), ...dataRows.map(row => row.join(';'))].join('\n');
 
-            fsPromises.writeFile(CALENDAR_CSV_PATH, updatedCSV, 'utf8', (writeErr) => {
-                if (writeErr) {
-                    console.error('[SERVER] Fehler beim Schreiben der CSV-Datei:', writeErr);
-                    return res.status(500).json({ error: 'Fehler beim Speichern der Daten.' });
-                }
-                console.log(`[SERVER] Daten für Nutzer ${nutzerId} erfolgreich gespeichert.`);
-                res.json({ success: true, message: 'Daten erfolgreich gespeichert.' });
-            });
+            fs.writeFileSync(CALENDAR_CSV_PATH, updatedCSV, 'utf8');
+            console.log(`[SERVER] Daten für Nutzer ${nutzerId} erfolgreich gespeichert.`);
+            res.json({ success: true, message: 'Daten erfolgreich gespeichert.' });
+
         } else {
             res.status(404).json({ error: `Mitarbeiter mit ID ${nutzerId} nicht gefunden.` });
         }
-    });
+    } catch (err) {
+        console.error('[SERVER] Fehler beim Lesen/Schreiben der CSV-Datei:', err);
+        return res.status(500).json({ error: 'Fehler beim Verarbeiten der Speicheranfrage.' });
+    }
 });
 
 function generateSchichtplanCSV(solution) {

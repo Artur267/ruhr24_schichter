@@ -1,0 +1,65 @@
+/* bearbeiten.css */
+
+.table-container {
+    width: 100%;
+    overflow-x: auto; /* Erlaubt horizontales Scrollen */
+    border: 1px solid #ccc;
+}
+
+.mitarbeiter-kalender th, .mitarbeiter-kalender td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sticky-col {
+    position: sticky; /* Wichtig! */
+    background-color: #f8f8f8; /* Leicht anderer Hintergrund, um es hervorzuheben */
+    z-index: 2;
+}
+
+/* WICHTIG: Passe diese Werte an die Breite deiner Spalten an! */
+.sticky-col-0 { left: 0px; }
+.sticky-col-1 { left: 50px; }  /* Breite von Spalte 0 */
+.sticky-col-2 { left: 150px; } /* Breite von Spalte 0 + Spalte 1 */
+/* Füge hier weitere Klassen hinzu, falls mehr Spalten fixiert werden sollen */
+
+.zeit-zelle {
+    cursor: pointer;
+    min-width: 120px;
+}
+.zeit-zelle:hover {
+    background-color: #e8f0fe;
+}
+
+
+/* --- Modal-Styling --- */
+.modal-hintergrund {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.modal-inhalt {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.modal-aktionen {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}

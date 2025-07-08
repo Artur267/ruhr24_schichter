@@ -1,187 +1,171 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    // ==============
+    //  1. SETUP
+    // ==============
+
+    // Referenzen auf alle wichtigen HTML-Elemente
     const ressortFilter = document.getElementById('ressortFilter');
     const cvdFilter = document.getElementById('cvdFilter');
     const mitarbeiterSuche = document.getElementById('mitarbeiterSuche');
     const mitarbeiterKalenderTbody = document.getElementById('mitarbeiterKalenderTbody');
-    const saveAllBtn = document.getElementById('save-all-btn');
+    const modal = document.getElementById('edit-modal');
+    const modalDatumSpan = document.getElementById('modal-datum');
+    const modalVonInput = document.getElementById('modal-von-zeit');
+    const modalBisInput = document.getElementById('modal-bis-zeit');
+    const modalSpeichernBtn = document.getElementById('modal-speichern-btn');
+    const modalAbbrechenBtn = document.getElementById('modal-abbrechen-btn');
+    const modalLeerenBtn = document.getElementById('modal-leeren-btn');
 
-    // Daten vom data-Attribut des tbody holen
-    const initialMitarbeiterDaten = JSON.parse(mitarbeiterKalenderTbody.dataset.mitarbeiterDaten || '[]');
-    let aktuelleMitarbeiterDaten = [...initialMitarbeiterDaten]; // Kopie für Filterung
+    // Globale Variable, die sich merkt, welche Zelle gerade bearbeitet wird
+    let aktiveZelle = null;
 
-    // Funktion zum Aktualisieren der Tabelle (ähnlich schichtplan.js, aber ohne Klick-Events für Sortierung)
-    function updateTable(mitarbeiterDaten) {
-        console.log('Aktualisiere Tabelle mit Daten:', mitarbeiterDaten);
-        mitarbeiterKalenderTbody.innerHTML = '';
-        if (mitarbeiterDaten && mitarbeiterDaten.length > 0) {
-            mitarbeiterDaten.forEach(mitarbeiter => {
-                const row = mitarbeiterKalenderTbody.insertRow();
-                row.dataset.nutzerId = mitarbeiter.NutzerID; // Nutzer-ID im data-Attribut der Zeile speichern
-                row.innerHTML = `
-                    <td>${mitarbeiter.NutzerID}</td>
-                    <td>${mitarbeiter.Nachname}</td>
-                    <td>${mitarbeiter.Vorname}</td>
-                    <td>${mitarbeiter.Ressort}</td>
-                    <td>${mitarbeiter.CVD}</td>
-                    <td class="notizen-spalte">${mitarbeiter.Notizen}</td>
-                    <td>${mitarbeiter.Wochenstunden}</td>
-                    <td>${mitarbeiter.MonatsSumme}</td>
-                    <td>${mitarbeiter.Delta}</td>
-                    ${Object.keys(mitarbeiter.Arbeitszeiten || {}).sort().map(datum => `
-                        <td><input type="time" class="arbeitszeit-von" value="${mitarbeiter.Arbeitszeiten[datum]?.Von || ''}"></td>
-                        <td><input type="time" class="arbeitszeit-bis" value="${mitarbeiter.Arbeitszeiten[datum]?.Bis || ''}"></td>
-                    `).join('')}
-                    <td><button class="save-row-btn">Speichern</button></td>
-                `;
-            });
-        } else {
-            const row = mitarbeiterKalenderTbody.insertRow();
-            const cell = row.insertCell();
-            cell.colSpan = 100;
-            cell.textContent = 'Keine Mitarbeiterdaten gefunden.';
-        }
-        // **HIER WIRD DIE FUNKTION JEDES MAL AUFGERUFEN, WENN DIE TABELLE NEU GERENDERT WIRD**
-        addSaveRowEventListeners();
-        const testButtons = mitarbeiterKalenderTbody.querySelectorAll('.save-row-btn');
-        testButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                console.log('Test-Button wurde geklickt!');
-            });
-        });
+    // ==============
+    //  2. LOGIK
+    // ==============
+
+    // Öffnet das Pop-up und füllt es mit den Daten der angeklickten Zelle
+    function openEditModal(zelle) {
+        aktiveZelle = zelle; // Merken, welche Zelle wir bearbeiten
+
+        const datum = zelle.dataset.datum;
+        const von = zelle.dataset.von;
+        const bis = zelle.dataset.bis;
+
+        modalDatumSpan.textContent = datum; // Datum im Modal-Titel anzeigen
+        modalVonInput.value = von;
+        modalBisInput.value = bis;
+
+        modal.style.display = 'flex'; // Modal anzeigen
+        modalVonInput.focus(); // Cursor direkt ins "Von"-Feld setzen
     }
 
-    // Funktion zum Filtern der Mitarbeiterdaten (identisch zu schichtplan.js)
-    function filterMitarbeiter() {
-        console.log('Filter anwenden');
-            const selectedRessort = ressortFilter.value;
-            const selectedCvd = cvdFilter.value;
-            const searchTerm = mitarbeiterSuche.value.toLowerCase();
-
-            const gefilterteDaten = initialMitarbeiterDaten.filter(mitarbeiter => {
-                const ressortMatch = !selectedRessort || mitarbeiter.Ressort === selectedRessort;
-                let cvdMatch = true; // Standardmäßig wird alles angezeigt, wenn kein Filter ausgewählt ist
-
-                if (selectedCvd === 'true') {
-                    cvdMatch = mitarbeiter.CVD === true || mitarbeiter.CVD === 'True';
-                } else if (selectedCvd === 'false') {
-                    cvdMatch = mitarbeiter.CVD === false || mitarbeiter.CVD === 'False';
-                }
-
-                const sucheMatch = !searchTerm ||
-                                    mitarbeiter.Nachname.toLowerCase().includes(searchTerm) ||
-                                    mitarbeiter.Vorname.toLowerCase().includes(searchTerm) ||
-                                    String(mitarbeiter.NutzerID).includes(searchTerm);
-
-                return ressortMatch && cvdMatch && sucheMatch;
-            });
-
-            aktuelleMitarbeiterDaten = gefilterteDaten;
-            updateTable(aktuelleMitarbeiterDaten);
+    // Schließt das Pop-up und setzt die aktive Zelle zurück
+    function closeModal() {
+        aktiveZelle = null;
+        modal.style.display = 'none';
     }
 
+    // Speichert die Änderungen aus dem Modal in die Tabellenzelle (noch nicht auf dem Server!)
+    function saveModalChanges() {
+        if (!aktiveZelle) return;
 
-    // Event Listener für die Filter (identisch zu schichtplan.js)
-    ressortFilter.addEventListener('change', filterMitarbeiter);
-    cvdFilter.addEventListener('change', filterMitarbeiter);
-    mitarbeiterSuche.addEventListener('input', filterMitarbeiter);
+        const neueVonZeit = modalVonInput.value;
+        const neueBisZeit = modalBisInput.value;
 
-    // Dynamisches Füllen des Ressort-Filters (identisch zu schichtplan.js)
-    const alleRessorts = [...new Set(initialMitarbeiterDaten.map(m => m.Ressort))].sort();
-    alleRessorts.forEach(ressort => {
-        const option = document.createElement('option');
-        option.value = ressort;
-        option.textContent = ressort;
-        ressortFilter.appendChild(option);
-    });
+        // Aktualisiere die data-Attribute der Zelle (hier speichern wir die neuen Werte zwischen)
+        aktiveZelle.dataset.von = neueVonZeit;
+        aktiveZelle.dataset.bis = neueBisZeit;
 
-    // Funktion zum Speichern der Änderungen für eine einzelne Zeile
+        // Aktualisiere den sichtbaren Text in der Zelle
+        aktiveZelle.querySelector('span').textContent = neueVonZeit ? `${neueVonZeit} - ${neueBisZeit}` : '-';
+
+        closeModal();
+    }
+
+    // Speichert die Daten einer kompletten Zeile auf dem Server
     function saveRow(row) {
-        console.log('Speichern für Zeile:', row);
         const nutzerId = row.dataset.nutzerId;
-        const vonZeiten = row.querySelectorAll('.arbeitszeit-von');
-        const bisZeiten = row.querySelectorAll('.arbeitszeit-bis');
         const geaenderteArbeitszeiten = {};
 
-        const mitarbeiterIndex = aktuelleMitarbeiterDaten.findIndex(m => String(m.NutzerID) === nutzerId);
-        if (mitarbeiterIndex !== -1) {
-            const mitarbeiter = aktuelleMitarbeiterDaten[mitarbeiterIndex];
-            Object.keys(mitarbeiter.Arbeitszeiten || {}).sort().forEach((datum, index) => {
-                geaenderteArbeitszeiten[datum] = {
-                    Von: vonZeiten[index]?.value || '',
-                    Bis: bisZeiten[index]?.value || ''
-                };
-            });
+        // Lese die zwischengespeicherten Werte aus den data-Attributen jeder Zelle
+        row.querySelectorAll('.zeit-zelle').forEach(zelle => {
+            geaenderteArbeitszeiten[zelle.dataset.datum] = {
+                Von: zelle.dataset.von,
+                Bis: zelle.dataset.bis
+            };
+        });
 
-            fetch(`/api/mitarbeiter/${nutzerId}/arbeitszeiten`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(geaenderteArbeitszeiten)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(`Fehler beim Speichern: ${err.error || response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Antwort vom Server:', data);
-                // Hier kannst du eine visuelle Rückmeldung an den Benutzer geben, z.B.
-                // eine kurze Erfolgsmeldung neben dem Button oder in der Zeile.
-                alert('Änderungen gespeichert!'); // Einfache Benachrichtigung
-            })
-            .catch(error => {
-                console.error('Fehler beim Senden der Daten zum Server:', error);
-                alert(`Fehler beim Speichern: ${error.message}`); // Einfache Fehlermeldung
-            });
-        } else {
-            console.error(`Mitarbeiter mit ID ${nutzerId} nicht in den aktuellen Daten gefunden.`);
-            alert(`Fehler: Mitarbeiter mit ID ${nutzerId} nicht gefunden.`);
+        console.log(`Speichere für Nutzer ${nutzerId}:`, geaenderteArbeitszeiten);
+
+        // Sende die Daten an das Java-Backend
+        fetch(`/api/mitarbeiter/${nutzerId}/arbeitszeiten`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(geaenderteArbeitszeiten)
+        })
+        .then(res => {
+            if (!res.ok) return res.json().then(err => Promise.reject(err));
+            return res.json();
+        })
+        .then(data => {
+            alert(`Änderungen für Nutzer ${nutzerId} gespeichert!`);
+            // Optional: Zeile kurz grün färben als visuelles Feedback
+            row.style.backgroundColor = '#d4edda';
+            setTimeout(() => { row.style.backgroundColor = ''; }, 2000);
+        })
+        .catch(error => {
+            console.error('Fehler beim Speichern:', error);
+            alert(`Fehler beim Speichern: ${error.message || 'Serverfehler'}`);
+        });
+    }
+    
+    // Filtert die Tabelle, indem Zeilen ein- und ausgeblendet werden
+    function filterTable() {
+        const selectedRessort = ressortFilter.value;
+        const selectedCvd = cvdFilter.value;
+        const searchTerm = mitarbeiterSuche.value.toLowerCase();
+
+        mitarbeiterKalenderTbody.querySelectorAll('tr').forEach(row => {
+            const ressortMatch = !selectedRessort || row.dataset.ressort === selectedRessort;
+            const cvdMatch = !selectedCvd || row.dataset.cvd === selectedCvd;
+            const sucheMatch = !searchTerm || row.dataset.name.includes(searchTerm) || row.dataset.nutzerId.includes(searchTerm);
+            
+            row.style.display = (ressortMatch && cvdMatch && sucheMatch) ? '' : 'none';
+        });
+    }
+
+    // Füllt den Ressort-Filter mit den vorhandenen Optionen
+    function populateRessortFilter() {
+        const ressorts = new Set();
+        document.querySelectorAll('#mitarbeiterKalenderTbody tr[data-ressort]').forEach(row => {
+            if (row.dataset.ressort) ressorts.add(row.dataset.ressort);
+        });
+        [...ressorts].sort().forEach(r => ressortFilter.appendChild(new Option(r, r)));
+    }
+
+
+    // ==============
+    //  3. EVENT LISTENERS
+    // ==============
+    
+    // Filter-Events
+    ressortFilter.addEventListener('change', filterTable);
+    cvdFilter.addEventListener('change', filterTable);
+    mitarbeiterSuche.addEventListener('input', filterTable);
+
+    // Effiziente Event Listener für die ganze Tabelle
+    mitarbeiterKalenderTbody.addEventListener('click', (event) => {
+        // Klick auf eine Zeit-Zelle? -> Modal öffnen
+        const zelle = event.target.closest('.zeit-zelle');
+        if (zelle) {
+            openEditModal(zelle);
         }
-    }
-
-    // Event Listener für die "Speichern" Buttons in jeder Zeile
-    function addSaveRowEventListeners() {
-        const saveButtons = document.querySelectorAll('.save-row-btn');
-        saveButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const row = this.closest('tr');
-                saveRow(row);
-            });
-        });
-    }
-
-    // Event Listener für den "Alle Änderungen speichern" Button
-    saveAllBtn.addEventListener('click', () => {
-        const rows = mitarbeiterKalenderTbody.querySelectorAll('tr');
-        const alleAenderungen = [];
-        rows.forEach(row => {
-            const nutzerId = row.dataset.nutzerId;
-            const vonZeiten = row.querySelectorAll('.arbeitszeit-von');
-            const bisZeiten = row.querySelectorAll('.arbeitszeit-bis');
-            const geaenderteArbeitszeiten = {};
-
-            const mitarbeiter = aktuelleMitarbeiterDaten.find(m => String(m.NutzerID) === nutzerId);
-            if (mitarbeiter) {
-                Object.keys(mitarbeiter.Arbeitszeiten || {}).sort().forEach((datum, index) => {
-                    geaenderteArbeitszeiten[datum] = {
-                        Von: vonZeiten[index]?.value || '',
-                        Bis: bisZeiten[index]?.value || ''
-                    };
-                });
-                alleAenderungen.push({ nutzerId: nutzerId, arbeitszeiten: geaenderteArbeitszeiten });
-            }
-        });
-
-        // Hier müsstest du eine AJAX-Anfrage an deinen Server senden,
-        // um alle Änderungen (alleAenderungen) zu speichern.
-        console.log('Alle Änderungen speichern:', alleAenderungen);
-        // Nach erfolgreicher Speicherung könntest du eine globale Rückmeldung geben.
+        // Klick auf einen Speicher-Button? -> Zeile speichern
+        if (event.target.classList.contains('save-row-btn')) {
+            saveRow(event.target.closest('tr'));
+        }
     });
 
-    // Initiales Anzeigen aller Daten
-    updateTable(initialMitarbeiterDaten);
+    // Modal-Button-Events
+    modalAbbrechenBtn.addEventListener('click', closeModal);
+    modalLeerenBtn.addEventListener('click', () => {
+        modalVonInput.value = '';
+        modalBisInput.value = '';
+    });
+    modalSpeichernBtn.addEventListener('click', saveModalChanges);
+    
+    // Klick auf den Hintergrund schließt das Modal
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    // ==============
+    //  4. START
+    // ==============
+    
+    // Fülle den Ressort-Filter beim ersten Laden der Seite
+    populateRessortFilter();
 });

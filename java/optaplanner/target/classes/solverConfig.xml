@@ -9,11 +9,11 @@
         </scoreDirectorFactory>
 
     <termination>
-       <secondsSpentLimit>300</secondsSpentLimit>
+       <secondsSpentLimit>200</secondsSpentLimit>
     </termination>
 
     <constructionHeuristic>
-        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
+        <constructionHeuristicType>ALLOCATE_TO_VALUE_FROM_QUEUE</constructionHeuristicType>
     </constructionHeuristic>
 
     <localSearch>

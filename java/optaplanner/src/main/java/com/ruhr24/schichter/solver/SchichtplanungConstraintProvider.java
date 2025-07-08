@@ -32,6 +32,7 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
                 mitarbeiterPasstZuMuster(cf),
                 cvdWochenendSequenz(cf),
                 kernWochenendSequenz(cf),
+                rotiereSchichtTypen(cf),
                 unbesetzteMusterBestrafen(cf)
         };
     }
@@ -94,6 +95,20 @@ public class SchichtplanungConstraintProvider implements ConstraintProvider {
             .penalize(HardSoftLongScore.ofSoft(PENALTY_HARD), (mitarbeiter, anzahl) -> anzahl * anzahl)
             .asConstraint("Faire Verteilung der Wochenend-Dienste");
     }
+
+    private Constraint rotiereSchichtTypen(ConstraintFactory cf) {
+        return cf.forEachUniquePair(Arbeitsmuster.class,
+                // Finde Paare vom selben Mitarbeiter...
+                Joiners.equal(Arbeitsmuster::getMitarbeiter),
+                // ... mit demselben Muster-Typ (z.B. zweimal hintereinander "CVD_FRUEH") ...
+                Joiners.equal(Arbeitsmuster::getMusterTyp),
+                // ... die in aufeinanderfolgenden Wochen stattfinden.
+                Joiners.filtering((m1, m2) -> Math.abs(m1.getWocheImJahr() - m2.getWocheImJahr()) == 1)
+            )
+            .penalize(HardSoftLongScore.ofSoft(PENALTY_LOW)) // Eine kleine Strafe als "Anstupser"
+            .asConstraint("Rotiere die Mustertypen");
+    }
+
     private Constraint unbesetzteMusterBestrafen(ConstraintFactory cf) {
         return cf.forEach(Arbeitsmuster.class)
             .filter(muster -> muster.getMitarbeiter() == null)

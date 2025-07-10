@@ -16,19 +16,19 @@ document.addEventListener('DOMContentLoaded', () => {
             mitarbeiterDaten.forEach(mitarbeiter => {
                 const row = mitarbeiterKalenderTbody.insertRow();
 
-                row.insertCell().textContent = mitarbeiter.id || ''; // von NutzerID zu id
-                row.insertCell().textContent = mitarbeiter.nachname || ''; // von Nachname zu nachname
-                row.insertCell().textContent = mitarbeiter.vorname || ''; // von Vorname zu vorname
-                row.insertCell().textContent = mitarbeiter.email || ''; // Jetzt "email"
-                row.insertCell().textContent = mitarbeiter.stellenbezeichnung || ''; // Jetzt "stellenbezeichnung"
-                row.insertCell().textContent = mitarbeiter.ressort || ''; // Jetzt "ressort"
-                row.insertCell().textContent = mitarbeiter.cvd ? "Ja" : "Nein"; // Jetzt "cvd" (Boolean)
-                row.insertCell().textContent = (mitarbeiter.rollenUndQualifikationen || []).join(', ') || ''; // Jetzt "rollenUndQualifikationen" (Array)
-                row.insertCell().textContent = (mitarbeiter.teamsUndZugehoerigkeiten || []).join(', ') || ''; // Jetzt "teamsUndZugehoerigkeiten" (Array)
-                row.insertCell().textContent = mitarbeiter.notizen || ''; // Jetzt "notizen"
-                row.insertCell().textContent = mitarbeiter.wochenstunden || ''; // Jetzt "wochenstunden"
-                row.insertCell().textContent = mitarbeiter.monatsSumme || ''; // Wenn diese Felder im neuen JSON sind
-                row.insertCell().textContent = mitarbeiter.delta || ''; // Wenn diese Felder im neuen JSON sind
+                row.insertCell().textContent = mitarbeiter.NutzerID || '';
+                row.insertCell().textContent = mitarbeiter.Nachname || '';
+                row.insertCell().textContent = mitarbeiter.Vorname || '';
+                row.insertCell().textContent = mitarbeiter.Email || '';
+                row.insertCell().textContent = mitarbeiter.Stellenbezeichnung || '';
+                row.insertCell().textContent = mitarbeiter.Ressort || '';
+                row.insertCell().textContent = mitarbeiter.CVD ? "Ja" : "Nein";
+                row.insertCell().textContent = (mitarbeiter.Qualifikationen || []).join(', ');
+                row.insertCell().textContent = (mitarbeiter.Teams || []).join(', ');
+                row.insertCell().textContent = mitarbeiter.Notizen || '';
+                row.insertCell().textContent = mitarbeiter.Wochenstunden || '';
+                row.insertCell().textContent = mitarbeiter.MonatsSumme || '';
+                row.insertCell().textContent = mitarbeiter.Delta || '';
 
 
                 // Arbeitszeiten Teil - Die Schlüssel sollten jetzt nur noch die Daten sein
@@ -68,17 +68,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 let cvdMatch = true;
 
                 if (selectedCvd === 'true') {
-                    cvdMatch = mitarbeiter.cvd === true;
+                    cvdMatch = mitarbeiter.CVD === true;
                 } else if (selectedCvd === 'false') {
-                    cvdMatch = mitarbeiter.cvd === false; 
+                    cvdMatch = mitarbeiter.CVD === false; 
                 }
 
                 const sucheMatch = !searchTerm ||
-                                    (mitarbeiter.nachname && mitarbeiter.nachname.toLowerCase().includes(searchTerm)) ||
-                                    (mitarbeiter.vorname && mitarbeiter.vorname.toLowerCase().includes(searchTerm)) ||
-                                    (mitarbeiter.id && String(mitarbeiter.id).includes(searchTerm)); // id statt NutzerID
+                                (mitarbeiter.Nachname && mitarbeiter.Nachname.toLowerCase().includes(searchTerm)) ||
+                                (mitarbeiter.Vorname && mitarbeiter.Vorname.toLowerCase().includes(searchTerm)) ||
+                                (mitarbeiter.NutzerID && String(mitarbeiter.NutzerID).includes(searchTerm));
 
-                return ressortMatch && cvdMatch && sucheMatch;
+            return ressortMatch && cvdMatch && sucheMatch;
+
             });
 
             aktuelleMitarbeiterDaten = gefilterteDaten;

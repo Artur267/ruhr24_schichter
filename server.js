@@ -65,50 +65,67 @@ function saveEmployees(data) {
 
 async function parseCSV(filePath) {
     return new Promise((resolve, reject) => {
-        const mitarbeiterDaten = [];
         const results = [];
-        
         fs.createReadStream(filePath)
-            .pipe(csv({ separator: ';' }))
+            .pipe(csv({ 
+                separator: ';',
+                mapHeaders: ({ header }) => header.trim().replace(/"/g, '') 
+            }))
             .on('data', (data) => results.push(data))
             .on('end', () => {
-                const headers = Object.keys(results[0] || {});
-                
-                // Extrahiere die Datumsspalten aus dem Header
-                const dateHeaders = headers.filter(h => h.endsWith(' Von')).map(h => h.replace(' Von', ''));
-                const datesISO = dateHeaders.map(dateStr => {
-                    const [day, month] = dateStr.split('.');
-                    return `${new Date().getFullYear()}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                });
+                try {
+                    if (results.length === 0) {
+                        return resolve({ mitarbeiterDaten: [], dates: [], datesISO: [] });
+                    }
 
-                results.forEach(row => {
-                    const arbeitszeiten = {};
-                    datesISO.forEach((isoDate, index) => {
-                        const displayDate = dateHeaders[index];
-                        arbeitszeiten[isoDate] = {
-                            Von: row[`${displayDate} Von`] || '',
-                            Bis: row[`${displayDate} Bis`] || ''
+                    const headers = Object.keys(results[0]);
+                    
+                    const dateHeaders = headers.filter(h => h.endsWith(' Von')).map(h => h.replace(' Von', ''));
+                    const year = new Date().getFullYear();
+                    const datesISO = dateHeaders.map(dateStr => {
+                        const [day, month] = dateStr.split('.');
+                        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    });
+
+                    const mitarbeiterDaten = results.map(row => {
+                        const arbeitszeiten = {};
+                        datesISO.forEach((isoDate, index) => {
+                            const displayDate = dateHeaders[index];
+                            arbeitszeiten[isoDate] = {
+                                Von: row[`${displayDate} Von`] || '',
+                                Bis: row[`${displayDate} Bis`] || ''
+                            };
+                        });
+
+                        // Deine korrigierte Logik hier:
+                        return {
+                            NutzerID: row.NutzerID,
+                            Nachname: row.Nachname,
+                            Vorname: row.Vorname,
+                            Email: row['E-Mail'] || '', // Korrekter Zugriff
+                            Stellenbezeichnung: row.Stellenbezeichnung,
+                            Ressort: row.Ressort,
+                            CVD: row.CVD === 'true',
+                            Qualifikationen: row.Qualifikationen ? row.Qualifikationen.split(',').map(r => r.trim()) : [],
+                            Teams: row.Teams ? row.Teams.split(',').map(t => t.trim()) : [],
+                            Notizen: row.Notizen,
+                            Wochenstunden: parseInt(row.Wochenstunden, 10) || 0,
+                            MonatsSumme: row.MonatsSumme,
+                            Delta: row.Delta,
+                            Arbeitszeiten: arbeitszeiten
                         };
                     });
 
-                    mitarbeiterDaten.push({
-                        NutzerID: row.NutzerID,
-                        Nachname: row.Nachname,
-                        Vorname: row.Vorname,
-                        Ressort: row.Ressort,
-                        CVD: row.CVD === 'true',
-                        Wochenstunden: parseInt(row.Wochenstunden, 10),
-                        MonatsSumme: row.MonatsSumme,
-                        Delta: row.Delta,
-                        Arbeitszeiten: arbeitszeiten
+                    // Die Funktion muss das Ergebnis mit resolve zurückgeben
+                    resolve({
+                        mitarbeiterDaten: mitarbeiterDaten,
+                        dates: dateHeaders,
+                        datesISO: datesISO
                     });
-                });
-
-                resolve({
-                    mitarbeiterDaten: mitarbeiterDaten,
-                    dates: dateHeaders,
-                    datesISO: datesISO
-                });
+                } catch (parseError) {
+                    console.error("Fehler bei der Verarbeitung der geparsten CSV-Daten:", parseError);
+                    reject(parseError);
+                }
             })
             .on('error', (error) => reject(error));
     });

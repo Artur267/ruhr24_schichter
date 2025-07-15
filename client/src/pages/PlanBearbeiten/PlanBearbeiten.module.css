@@ -1,0 +1,23 @@
+/* PlanBearbeiten.module.css */
+
+.container {
+    padding: 1rem;
+}
+
+.searchInput {
+    margin-bottom: 1rem;
+    max-width: 400px;
+}
+
+.calendarWrapper :global(.fc-timeline-lane-frame) {
+    height: 45px !important;
+}
+
+.calendarWrapper :global(.fc-datagrid-cell-main) {
+    font-weight: 500;
+}
+
+/* Optional: Hebe die Zelle hervor, über der gerade eine Schicht gezogen wird */
+.calendarWrapper :global(.fc-timeline-slot-lane.fc-highlight) {
+    background: rgba(238, 114, 3, 0.2);
+}

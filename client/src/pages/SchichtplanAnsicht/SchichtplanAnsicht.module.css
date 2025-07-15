@@ -1,0 +1,38 @@
+/* SchichtplanAnsicht.module.css */
+
+.container {
+    padding: 1rem;
+}
+
+.searchInput {
+    margin-bottom: 1rem;
+    max-width: 400px;
+}
+
+.calendarWrapper :global(.fc-timeline-lane-frame) {
+    height: 45px !important; /* Macht die Zeilen etwas höher und lesbarer */
+}
+
+.calendarWrapper :global(.fc-datagrid-cell-main) {
+    font-weight: 500;
+}
+
+.calendarWrapper :global(.feiertag-zelle) {
+    background-color: #9da0a3 !important; /* Helles Grau für Feiertage */
+}
+
+.headerButton {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+.headerButton:hover {
+    background-color: rgba(0,0,0,0.1);
+}

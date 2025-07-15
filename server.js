@@ -1,30 +1,37 @@
-require('dotenv').config();
-const express = require('express');
-const expressLayouts = require('express-ejs-layouts');
-const bodyParser = require('body-parser');
-const axios = require('axios');
-const path = require('path');
-const fs = require('fs');
-const { promises: fsPromises } = fs;
-const csv = require('csv-parser');
-const multer = require('multer');
+import 'dotenv/config'; // Direkter Import, der dotenv konfiguriert
+import express from 'express';
+import expressLayouts from 'express-ejs-layouts';
+import bodyParser from 'body-parser';
+import axios from 'axios';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import fs, { promises as fsPromises } from 'fs';
+import csv from 'csv-parser';
+import multer from 'multer';
+import { JSONFilePreset } from 'lowdb/node';
+
+// --- WICHTIG: __dirname in ES-Modulen nachbauen ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// --- Datenbank-Initialisierung ---
+const defaultData = { plans: [] };
+const db = await JSONFilePreset(path.join(__dirname, 'db.json'), defaultData);
+
 const app = express();
 const PORT = 3000;
-const { exec } = require('child_process');
-const RULES_PATH = path.join(__dirname, 'data', 'regelwerk.json');
+
+// --- Konstanten ---
 const EMPLOYEE_PATH = path.join(__dirname, 'data', 'mitarbeiter.json');
 const CALENDAR_CSV_PATH = path.join(__dirname, 'java', 'optaplanner', 'results', 'output.csv');
-console.log(`[NODE.JS BACKEND] Konfigurierter CSV-Lesepfad: ${CALENDAR_CSV_PATH}`); // NEU
-const UPLOADS_PATH = path.join(__dirname, 'uploads');
-const SETTINGS_PATH = path.join(__dirname, 'data', 'settings.json');
-const PROMPT_PATH = path.join(__dirname, 'data', 'prompts.txt');
 
+// --- Middleware ---
 app.use(expressLayouts);
 app.set('layout', 'layout');
 app.set('view engine', 'ejs');
-app.use(express.json({limit: '50mb'})); // Erhöht das Limit für JSON-Daten
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' })); // Erhöht das Limit für URL-kodierte Daten
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // Multer Konfiguration
 const storage = multer.diskStorage({
@@ -44,6 +51,43 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Funktionen
+
+
+function processSolutionForDatabase(solution) {
+    if (!solution || !Array.isArray(solution.mitarbeiterList)) {
+        return solution; // Gib unverändert zurück, wenn die Datenstruktur unerwartet ist
+    }
+
+    // Erstelle eine Map für schnellen Zugriff auf Mitarbeiter
+    const mitarbeiterMap = new Map(
+        solution.mitarbeiterList.map(m => [m.id, { ...m, Arbeitszeiten: {} }])
+    );
+
+    // Gehe durch alle Arbeitsmuster und ordne die Schichten zu
+    if (Array.isArray(solution.arbeitsmusterList)) {
+        solution.arbeitsmusterList.forEach(muster => {
+            if (muster.mitarbeiter && Array.isArray(muster.schichten)) {
+                const mitarbeiter = mitarbeiterMap.get(muster.mitarbeiter.id);
+                if (mitarbeiter) {
+                    muster.schichten.forEach(schicht => {
+                        if (schicht.datum && schicht.startZeit && schicht.endZeit) {
+                             // Füge die Schicht zum Arbeitszeiten-Objekt des Mitarbeiters hinzu
+                            mitarbeiter.Arbeitszeiten[schicht.datum] = {
+                                Von: schicht.startZeit.substring(0, 5),
+                                Bis: schicht.endZeit.substring(0, 5)
+                            };
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    // Erstelle eine neue Lösung mit der angereicherten Mitarbeiterliste
+    return { ...solution, mitarbeiterList: Array.from(mitarbeiterMap.values()) };
+}
+
+
 function loadEmployees() {
     try {
         const data = fs.readFileSync(EMPLOYEE_PATH, 'utf8');
@@ -79,30 +123,30 @@ async function parseCSV(filePath) {
                     }
 
                     const headers = Object.keys(results[0]);
-                    
                     const dateHeaders = headers.filter(h => h.endsWith(' Von')).map(h => h.replace(' Von', ''));
                     const year = new Date().getFullYear();
                     const datesISO = dateHeaders.map(dateStr => {
                         const [day, month] = dateStr.split('.');
-                        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     });
 
                     const mitarbeiterDaten = results.map(row => {
                         const arbeitszeiten = {};
+                        
+                        // KORREKTUR HIER: Wir benutzen das ISO-Datum als Schlüssel
                         datesISO.forEach((isoDate, index) => {
                             const displayDate = dateHeaders[index];
-                            arbeitszeiten[isoDate] = {
+                            arbeitszeiten[isoDate] = { // Der Schlüssel ist jetzt z.B. "2025-08-04"
                                 Von: row[`${displayDate} Von`] || '',
                                 Bis: row[`${displayDate} Bis`] || ''
                             };
                         });
 
-                        // Deine korrigierte Logik hier:
                         return {
                             NutzerID: row.NutzerID,
                             Nachname: row.Nachname,
                             Vorname: row.Vorname,
-                            Email: row['E-Mail'] || '', // Korrekter Zugriff
+                            Email: row['E-Mail'],
                             Stellenbezeichnung: row.Stellenbezeichnung,
                             Ressort: row.Ressort,
                             CVD: row.CVD === 'true',
@@ -116,20 +160,78 @@ async function parseCSV(filePath) {
                         };
                     });
 
-                    // Die Funktion muss das Ergebnis mit resolve zurückgeben
                     resolve({
                         mitarbeiterDaten: mitarbeiterDaten,
-                        dates: dateHeaders,
-                        datesISO: datesISO
+                        dates: dateHeaders, // Das bleibt für die Anzeige im Header
+                        datesISO: datesISO  // Das wird jetzt für den Datenzugriff genutzt
                     });
                 } catch (parseError) {
-                    console.error("Fehler bei der Verarbeitung der geparsten CSV-Daten:", parseError);
                     reject(parseError);
                 }
             })
             .on('error', (error) => reject(error));
     });
 }
+/*
+app.get('/api/schichtplan', async (req, res) => {
+    // Lese alle Pläne aus der Datenbank
+    const allPlans = db.data.plans;
+
+    // Fasse die Daten aus allen Plänen zusammen (vereinfachtes Beispiel)
+    const combinedMitarbeiterDaten = []; // Hier müsstest du die Daten aller Pläne mergen
+    // Fürs Erste geben wir nur den letzten Plan zurück, um die Logik zu zeigen
+    const lastPlan = allPlans[allPlans.length - 1]; 
+
+    if (lastPlan) {
+        // Deine `transformDataForFullCalendar` Logik bleibt dieselbe
+        res.json(transformDataForFullCalendar(lastPlan.mitarbeiterDaten));
+    } else {
+        res.json({ events: [], resources: [] });
+    }
+});
+*/
+// in server.js
+
+app.get('/api/schichtplan', async (req, res) => {
+    try {
+        await db.read(); // Lese den aktuellen Stand der Datenbank
+        const allPlans = db.data.plans;
+
+        if (!allPlans || allPlans.length === 0) {
+            return res.json({ mitarbeiterDaten: [] }); // Sende leere Daten, wenn keine Pläne existieren
+        }
+
+        // KORREKTUR: Wir führen jetzt alle Pläne zusammen
+        const mitarbeiterMap = new Map();
+
+        allPlans.forEach(plan => {
+            if (plan && Array.isArray(plan.mitarbeiterList)) {
+                plan.mitarbeiterList.forEach(mitarbeiter => {
+                    if (mitarbeiter && mitarbeiter.id) {
+                        // Wenn wir diesen Mitarbeiter schon kennen, fügen wir nur die neuen Arbeitszeiten hinzu
+                        if (mitarbeiterMap.has(mitarbeiter.id)) {
+                            const existingMitarbeiter = mitarbeiterMap.get(mitarbeiter.id);
+                            Object.assign(existingMitarbeiter.Arbeitszeiten, mitarbeiter.Arbeitszeiten);
+                        } else {
+                            // Ansonsten fügen wir den kompletten Mitarbeiter neu hinzu
+                            mitarbeiterMap.set(mitarbeiter.id, { ...mitarbeiter });
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Wandle die Map zurück in ein Array
+        const combinedMitarbeiterDaten = Array.from(mitarbeiterMap.values());
+
+        // Sende die kombinierte Liste an das Frontend
+        res.json({ mitarbeiterDaten: combinedMitarbeiterDaten });
+
+    } catch (error) {
+        console.error('Fehler in /api/schichtplan:', error);
+        res.status(500).json({ error: 'Fehler beim Laden der Plandaten aus der DB.' });
+    }
+});
 
 // Routen zu Links erstellen
 app.get('/prompt', async (req, res) => {
@@ -153,6 +255,14 @@ app.get('/settings', async (req, res) => {
   }
 });
 
+app.get('/api/mitarbeiter-daten', (req, res) => {
+    try{
+        res.json(loadEmployees());
+    } catch(error){
+        res.status(500).json({error: "Fehler beim Laden der Mitarbeiterdaten"})
+    }
+});
+
 app.get('/mitarbeiter-daten', (req, res) => {
     try{
         res.json(loadEmployees());
@@ -160,6 +270,30 @@ app.get('/mitarbeiter-daten', (req, res) => {
         res.status(500).json({error: "Fehler beim Laden der Mitarbeiterdaten"})
     }
 });
+
+/*
+app.get('/api/schichtplan', async (req, res) => {
+    try {
+        const outputCsvPath = path.join(__dirname, 'java', 'optaplanner', 'results', 'output.csv');
+        
+        // Prüfen, ob die Datei existiert
+        if (!fs.existsSync(outputCsvPath)) {
+            console.error(`[API] Plandatei nicht gefunden unter: ${outputCsvPath}`);
+            return res.status(404).json({ message: 'Keine Plandatei (output.csv) gefunden.' });
+        }
+        
+        // Die parseCSV-Funktion aufrufen
+        const csvDaten = await parseCSV(outputCsvPath);
+        
+        // Die Daten als JSON an React zurücksenden
+        res.json(csvDaten);
+
+    } catch (error) {
+        console.error('Fehler in der /api/schichtplan Route:', error);
+        res.status(500).json({ error: 'Fehler beim Laden der Plandaten.' });
+    }
+});
+*/
 
 app.get('/schichtplan', async (req, res) => {
     try {
@@ -177,6 +311,8 @@ app.get('/schichtplan', async (req, res) => {
         res.status(500).send('Fehler beim Anzeigen der Mitarbeiter Schichtplandaten.');
     }
 });
+
+
 
 app.get('/bearbeiten', async (req, res) => {
     try {
@@ -216,6 +352,26 @@ app.get('/richtlinien', (req, res) => {
     });
 });
 
+app.get("/api/planungs-ergebnis/:problemId", async (req, res) => {
+    const { problemId } = req.params;
+    console.log(`[NODE.JS PROXY] Status-Anfrage für ${problemId} wird an Java weitergeleitet...`);
+
+    try {
+        const javaBackendResponse = await axios.get(`http://localhost:8080/api/planungs-ergebnis/${problemId}`, {
+            // Wichtig, damit axios bei 202 nicht abbricht
+            validateStatus: status => status < 500 
+        });
+
+        // Leite einfach den Status und die Daten vom Java-Backend 1-zu-1 weiter.
+        // Das funktioniert für 200 OK, 202 Accepted und alle Fehlercodes.
+        res.status(javaBackendResponse.status).json(javaBackendResponse.data);
+
+    } catch (error) {
+        console.error(`[NODE.JS PROXY] Fehler beim Abrufen des Planungsergebnisses für ID ${problemId}:`, error.message);
+        res.status(500).json({ error: "Proxy-Fehler zum Java-Backend." });
+    }
+});
+
 app.get('/planungs-ergebnis/:problemId', async (req, res) => {
     const problemId = req.params.problemId;
     try {
@@ -226,11 +382,12 @@ app.get('/planungs-ergebnis/:problemId', async (req, res) => {
         // Hier sollte Java JSON zurückgeben (entweder 200 OK mit Lösung oder 202 Accepted mit null Body)
         if (javaBackendResponse.status === 202) {
             console.log(`[NODE.JS PROXY] Java-Backend antwortet 202 für ${problemId} (noch in Arbeit).`);
-            res.status(202).end(); // Sende 202 ohne Body, da das Frontend das so erwartet
+            // Leite den Status UND die JSON-Daten vom Java-Backend weiter
+            res.status(202).json(javaBackendResponse.data); 
         } else if (javaBackendResponse.status === 200) {
-            const jsonBody = await javaBackendResponse.json();
             console.log(`[NODE.JS PROXY] Java-Backend antwortet 200 OK für ${problemId} (Lösung gefunden).`);
-            res.status(200).json(jsonBody); // Sende JSON-Lösung zurück
+            // Leite den Status UND die JSON-Daten vom Java-Backend weiter
+            res.status(200).json(javaBackendResponse.data);
         } else {
             // Für 404 Not Found oder andere Fehler
             const errorBody = await javaBackendResponse.text();
@@ -277,6 +434,42 @@ app.delete('/richtlinie/:id', (req, res) => {
     });
 });
 
+app.put('/api/schicht/:eventId', async (req, res) => {
+    const { eventId } = req.params;
+    const { neuesDatum, von, bis, resourceId } = req.body;
+
+    try {
+        await db.read();
+        const [mitarbeiterId, altesDatum] = eventId.split('_');
+
+        for (const plan of db.data.plans) {
+            const alterMitarbeiter = plan.mitarbeiterList.find(m => m.id === mitarbeiterId);
+            
+            if (alterMitarbeiter && alterMitarbeiter.Arbeitszeiten?.[altesDatum]) {
+                // Lösche die alte Schicht
+                const alteSchicht = alterMitarbeiter.Arbeitszeiten[altesDatum];
+                delete alterMitarbeiter.Arbeitszeiten[altesDatum];
+
+                // Finde den neuen Mitarbeiter (kann auch der gleiche sein)
+                const neuerMitarbeiter = plan.mitarbeiterList.find(m => m.id === resourceId);
+                if (neuerMitarbeiter) {
+                    if (!neuerMitarbeiter.Arbeitszeiten) neuerMitarbeiter.Arbeitszeiten = {};
+                    // Füge die Schicht am neuen Datum mit den neuen Zeiten hinzu
+                    neuerMitarbeiter.Arbeitszeiten[neuesDatum] = { Von: von, Bis: bis };
+                }
+
+                await db.write();
+                return res.json({ message: 'Schicht erfolgreich aktualisiert.' });
+            }
+        }
+        return res.status(404).json({ message: 'Zu aktualisierende Schicht nicht gefunden.' });
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren der Schicht:', error);
+        res.status(500).json({ error: 'Serverfehler beim Update.' });
+    }
+});
+
+
 app.put('/mitarbeiter/:id', (req, res) => {
     try{
         const employees = loadEmployees();
@@ -287,6 +480,27 @@ app.put('/mitarbeiter/:id', (req, res) => {
         res.json({ success: true });
     } catch(error){
         res.status(500).json({error: "Fehler beim Aktualisieren des Mitarbeiters"})
+    }
+});
+
+app.post('/api/plan', async (req, res) => {
+    const solution = req.body;
+    if (!solution) {
+        return res.status(400).json({ message: "Keine Plandaten erhalten." });
+    }
+
+    try {
+        // NEU: Bereite die Daten auf, bevor du sie speicherst
+        const processedPlan = processSolutionForDatabase(solution);
+
+        await db.read();
+        db.data.plans.push(processedPlan); // Speichere den aufbereiteten Plan
+        await db.write();
+
+        res.status(201).json({ message: "Plan erfolgreich gespeichert." });
+    } catch (error) {
+        console.error("[SERVER] Fehler beim Speichern des Plans:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -327,6 +541,29 @@ app.post('/mitarbeiter', (req, res) => {
         res.json({ success: true });
     } catch(error){
         res.status(500).json({error: "Fehler beim Erstellen des Mitarbeiters"})
+    }
+});
+
+app.post('/api/save-schichtplan-csv', async (req, res) => {
+    const solution = req.body; // Die gesamte SchichtPlan-Lösung wird im Body erwartet
+
+    if (!solution) {
+        console.error("[NODE.JS PROXY] Fehler: Keine Lösung im Request Body für CSV-Speicherung erhalten.");
+        return res.status(400).json({ error: "Keine Schichtplan-Lösung zum Speichern erhalten." });
+    }
+
+    try {
+        // Die generateSchichtplanCSV-Funktion muss auch in dieser server.js-Datei definiert sein.
+        // Siehe die vollständige server.js-Datei, die ich in früheren Antworten gesendet habe.
+        const csvString = generateSchichtplanCSV(solution); 
+
+        // Schreibe die CSV-Daten in die Datei
+        await fsPromises.writeFile(CALENDAR_CSV_PATH, csvString, 'utf8');
+        console.log(`[NODE.JS PROXY] Schichtplan-Lösung erfolgreich als CSV gespeichert unter: ${CALENDAR_CSV_PATH}`);
+        res.status(200).json({ message: "Schichtplan erfolgreich als CSV gespeichert." });
+    } catch (error) {
+        console.error("[NODE.JS PROXY] Fehler beim Speichern der Schichtplan-Lösung als CSV:", error);
+        res.status(500).json({ error: `Fehler beim Speichern der CSV: ${error.message}` });
     }
 });
 
@@ -527,6 +764,69 @@ app.post('/richtlinie', (req, res) => {
         }
     });
 });
+
+app.post("/api/starte-scheduler", async (req, res) => {
+    const { von, bis, ressort, mitarbeiterList } = req.body;
+
+    console.log("[NODE.JS PROXY] Empfange Anfrage für /starte-scheduler.");
+    console.log("[NODE.JS PROXY] Empfangene Daten (von, bis, ressort):", von, bis, ressort);
+    console.log("[NODE.JS PROXY] Anzahl Mitarbeiter:", mitarbeiterList ? mitarbeiterList.length : 0);
+
+    try {
+        const planungsDaten = {
+            von: von,
+            bis: bis,
+            ressort: ressort,
+            mitarbeiterList: mitarbeiterList.map(mitarbeiter => ({
+                id: mitarbeiter.id,
+                nachname: mitarbeiter.nachname,
+                vorname: mitarbeiter.vorname,
+                email: mitarbeiter.email ?? null,
+                stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null,
+                ressort: mitarbeiter.ressort,
+                wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0,
+                cvd: mitarbeiter.cvd ?? false,
+                notizen: mitarbeiter.notizen ?? null,
+                rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [],
+                teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [],
+                wunschschichten: mitarbeiter.wunschschichten ?? [],
+                urlaubtageSet: mitarbeiter.urlaubtageSet ?? []
+            }))
+        };
+        // URL zum Java-Backend: /api/solve (POST)
+        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/solve)...");
+
+        const javaBackendResponse = await axios.post('http://localhost:8080/api/solve', planungsDaten);
+
+        const { problemId, solverTimeoutMillis, message } = javaBackendResponse.data;
+
+        if (!problemId) {
+            console.error('[NODE.JS PROXY] FEHLER: Keine problemId im JSON-Objekt vom Java-Backend erhalten.');
+            return res.status(500).json({ error: 'Konnte problemId vom Java-Backend nicht extrahieren.' });
+        }
+        console.log('[NODE.JS PROXY] Extrahierte Problem-ID:', problemId);
+        console.log('[NODE.JS PROXY] Extrahierter Solver Timeout (ms):', solverTimeoutMillis);
+
+        res.status(202).json({
+            message: message || "Planung erfolgreich gestartet.",
+            problemId: problemId,
+            solverTimeoutMillis: solverTimeoutMillis
+        });
+
+    } catch (error) {
+        console.error("[NODE.JS PROXY] Fehler beim Starten der OptaPlanner-Planung:", error.message);
+        if (axios.isAxiosError(error) && error.response) {
+            console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
+            console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
+            res.status(error.response.status).json({
+                error: `Fehler beim Starten der OptaPlanner-Planung: ${error.response.status} - ${JSON.stringify(error.response.data) || error.message}`
+            });
+        } else {
+            res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
+        }
+    }
+});
+
 app.post("/starte-scheduler", async (req, res) => {
     const { von, bis, ressort, mitarbeiterList } = req.body;
 

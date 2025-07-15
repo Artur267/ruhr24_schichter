@@ -4,6 +4,8 @@
     width: 100%;
     overflow-x: auto; /* Erlaubt horizontales Scrollen */
     border: 1px solid #ccc;
+    position: absolute;
+    margin-top: 13rem;
 }
 
 .mitarbeiter-kalender th, .mitarbeiter-kalender td {

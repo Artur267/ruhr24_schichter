@@ -104,37 +104,26 @@ public class SolverController {
     }
 
     private void handleTermination(UUID problemId, Throwable throwable, SolverJob<SchichtPlan, UUID> job) {
-        AtomicReference<SchichtPlan> finalSolutionRef = new AtomicReference<>();
-        if (throwable == null) {
-            try {
-                finalSolutionRef.set(job.getFinalBestSolution());
-            } catch (InterruptedException | ExecutionException e) {
-                finalSolutionRef.set(solutionStore.getSolution(problemId));
-                solutionStore.putError(problemId, new RuntimeException("Fehler beim Abrufen der finalen Lösung.", e));
-            }
-        } else {
-            System.err.println("[JAVA BACKEND] ❌ Solver-Fehler für ID: " + problemId);
+        if (throwable != null) {
+            // Falls der Solver selbst abgestürzt ist, logge den Fehler.
+            System.err.println("[JAVA BACKEND] ❌ Solver für ID " + problemId + " ist mit einem Fehler beendet worden.");
             throwable.printStackTrace();
             solutionStore.putError(problemId, new RuntimeException("Solver-Fehler.", throwable));
-            finalSolutionRef.set(solutionStore.getSolution(problemId));
         }
-        
-        SchichtPlan finalSolution = finalSolutionRef.get();
+
+        // Hole die letzte bekannte beste Lösung aus unserem Zwischenspeicher.
+        SchichtPlan finalSolution = solutionStore.getSolution(problemId);
+
         if (finalSolution != null) {
-            solutionStore.putSolution(problemId, finalSolution);
-
-            // HIER IST DIE SCORE-ANALYSE, DIE JETZT FUNKTIONIERT
-            if (solutionManager != null) {
-                ScoreExplanation<SchichtPlan, HardSoftLongScore> scoreExplanation = solutionManager.explain(finalSolution);
-
-                System.out.println("\n\n--- SCORE-ANALYSE FÜR PROBLEM " + problemId + " ---");
-                System.out.println(scoreExplanation.getSummary());
-                System.out.println("--------------------------------------------------\n\n");
-            } else {
-                System.err.println("[JAVA BACKEND] solutionManager ist null, Score-Analyse wird übersprungen.");
-            }
-
+            // Rufe direkt die Speicherfunktion auf.
             saveSolutionToCsv(finalSolution);
+
+            // Optional: Gib die Score-Analyse aus, um zu sehen, wie gut der Plan ist.
+            ScoreExplanation<SchichtPlan, HardSoftLongScore> scoreExplanation = solutionManager.explain(finalSolution);
+            System.out.println("\n--- FINALE SCORE-ANALYSE FÜR " + problemId + " ---\n" + scoreExplanation.getSummary());
+
+        } else {
+            System.err.println("[JAVA BACKEND] Konnte keine finale Lösung zum Speichern für ID " + problemId + " finden.");
         }
     }
 
@@ -164,11 +153,9 @@ public class SolverController {
     }
     
     private void saveSolutionToCsv(SchichtPlan schichtPlan) {
-        File resultsDir = new File("results");
-        if (!resultsDir.exists()) resultsDir.mkdirs();
+        String filePath = "java/optaplanner/results/output.csv";
+        File outputFile = new File(filePath);
 
-        File outputFile = new File(resultsDir, "output.csv");
-        
         if (schichtPlan == null || schichtPlan.getVon() == null || schichtPlan.getBis() == null) {
             System.err.println("[CSV-Fehler] Schichtplan oder dessen Daten sind null. Breche CSV-Erstellung ab.");
             return;

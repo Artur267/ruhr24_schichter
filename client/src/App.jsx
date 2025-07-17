@@ -8,6 +8,7 @@ import LandingPage from './pages/LandingPage/LandingPage';
 import MitarbeiterVerwaltung from './pages/MitarbeiterVerwaltung/MitarbeiterVerwaltung'; // Für später
 import PlanBearbeiten from './pages/PlanBearbeiten/PlanBearbeiten';
 
+
 function App() {
   return (
     <div className="dashboard-layout">
@@ -17,7 +18,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/erstellen" element={<PlanungErstellen />} />
           <Route path="/betrachten" element={<SchichtplanAnsicht />} />
-          <Route path="/mitarbeiter" element={<MitarbeiterVerwaltung />} />
+          <Route path="/mitarbeiter-verwalten" element={<MitarbeiterVerwaltung />} />
           <Route path="/bearbeiten" element={<PlanBearbeiten />} />
           {/* Hier können weitere Routen hinzugefügt werden */}
 

@@ -400,6 +400,27 @@ app.get('/planungs-ergebnis/:problemId', async (req, res) => {
     }
 });
 
+app.delete('/api/schicht/:eventId', async (req, res) => {
+    const { eventId } = req.params;
+    const [mitarbeiterId, isoDate] = eventId.split('_');
+
+    try {
+        await db.read();
+        // Finde den Plan und die Schicht
+        for (const plan of db.data.plans) {
+            const mitarbeiter = plan.mitarbeiterList.find(m => m.id === mitarbeiterId);
+            if (mitarbeiter && mitarbeiter.Arbeitszeiten?.[isoDate]) {
+                delete mitarbeiter.Arbeitszeiten[isoDate];
+                await db.write();
+                return res.json({ message: 'Schicht erfolgreich gelöscht.' });
+            }
+        }
+        return res.status(404).json({ message: 'Zu löschende Schicht nicht gefunden.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Serverfehler beim Löschen.' });
+    }
+});
+
 app.delete('/mitarbeiter/:id', (req, res) => {
     try{
         const employees = loadEmployees();
@@ -480,6 +501,42 @@ app.put('/mitarbeiter/:id', (req, res) => {
         res.json({ success: true });
     } catch(error){
         res.status(500).json({error: "Fehler beim Aktualisieren des Mitarbeiters"})
+    }
+});
+
+app.post('/api/schicht', async (req, res) => {
+    const { resourceId, neuesDatum, von, bis } = req.body;
+
+    try {
+        await db.read();
+        
+        // Finde den ersten Plan, der den Mitarbeiter enthält
+        // In einer komplexeren App müsstest du hier vielleicht den richtigen Plan auswählen
+        const plan = db.data.plans.find(p => p.mitarbeiterList.some(m => m.id === resourceId));
+
+        if (!plan) {
+            return res.status(404).json({ error: "Kein passender Plan für diesen Mitarbeiter gefunden." });
+        }
+
+        const mitarbeiter = plan.mitarbeiterList.find(m => m.id === resourceId);
+        if (!mitarbeiter) {
+            return res.status(404).json({ error: "Mitarbeiter nicht im Plan gefunden." });
+        }
+
+        // Initialisiere das Arbeitszeiten-Objekt, falls es nicht existiert
+        if (!mitarbeiter.Arbeitszeiten) {
+            mitarbeiter.Arbeitszeiten = {};
+        }
+
+        // Füge die neue Schicht hinzu
+        mitarbeiter.Arbeitszeiten[neuesDatum] = { Von: von, Bis: bis };
+
+        await db.write(); // Speichere die Änderung in der db.json
+        res.status(201).json({ message: 'Schicht erfolgreich erstellt.' });
+
+    } catch (error) {
+        console.error("Fehler beim Erstellen der Schicht:", error);
+        res.status(500).json({ error: 'Serverfehler beim Erstellen der Schicht.' });
     }
 });
 

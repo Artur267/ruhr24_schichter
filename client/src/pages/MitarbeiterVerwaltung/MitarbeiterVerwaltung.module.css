@@ -1,8 +1,13 @@
+/* client/src/pages/MitarbeiterVerwaltung/MitarbeiterVerwaltung.module.css */
+
 .container {
-    padding: 1rem;
+    padding: 2rem;
 }
 
-.search {
-    margin-bottom: 2rem;
-    max-width: 500px;
+.searchInput {
+    width: 300px;
+}
+
+.tableWrapper {
+    overflow-x: auto; /* Sorgt für horizontales Scrollen auf kleinen Bildschirmen */
 }

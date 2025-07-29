@@ -9,8 +9,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubstageSet": []
   },
@@ -24,8 +28,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -39,9 +47,25 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
-    "wunschschichten": [],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
+    "wunschschichten": [
+      {
+        "datum": "2025-07-28T09:05:07.789Z",
+        "typ": "Muss",
+        "von": "08:00",
+        "bis": "16:30"
+      },
+      {
+        "datum": "2025-07-29T09:05:07.789Z",
+        "typ": "Frei (nicht verfügbar)"
+      }
+    ],
     "urlaubstageSet": []
   },
   {
@@ -54,8 +78,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["Buzz"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Buzz"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -69,8 +97,12 @@
     "wochenstunden": 30,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["DANIELE_SONDERDIENST"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "DANIELE_SONDERDIENST"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -84,8 +116,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -99,8 +135,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -114,8 +154,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -129,8 +173,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -144,8 +192,13 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -159,8 +212,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24JOBS", "RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24JOBS",
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -174,8 +232,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["Buzz"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Buzz"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -189,8 +251,13 @@
     "wochenstunden": 20,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["LIBE_SONDERDIENST"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD am Wochenende"],
+    "rollenUndQualifikationen": [
+      "LIBE_SONDERDIENST"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "CvD am Wochenende"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -204,8 +271,13 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -219,8 +291,12 @@
     "wochenstunden": 15,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["TZ_15H"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "TZ_15H"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -234,8 +310,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -249,8 +329,13 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -264,8 +349,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -279,8 +368,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "SEO"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "SEO"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -294,8 +388,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -309,8 +407,13 @@
     "wochenstunden": 19,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["WerkstudentIn"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Werkstudent:innen"],
+    "rollenUndQualifikationen": [
+      "WerkstudentIn"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Werkstudent:innen"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -324,8 +427,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -339,8 +446,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -354,8 +465,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -369,8 +484,13 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "CvD am Wochenende"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "CvD am Wochenende"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -384,8 +504,13 @@
     "wochenstunden": 19,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["WerkstudentIn"],
-    "teamsUndZugehoerigkeiten": ["Werkstudent:innen", "RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "WerkstudentIn"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Werkstudent:innen",
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -399,8 +524,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -414,8 +543,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -429,8 +563,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -444,8 +582,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -459,8 +601,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -474,8 +621,13 @@
     "wochenstunden": 19,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["WerkstudentIn"],
-    "teamsUndZugehoerigkeiten": ["Werkstudent:innen", "RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "WerkstudentIn"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Werkstudent:innen",
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -489,8 +641,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["Buzz", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Buzz",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -504,8 +661,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -519,8 +681,14 @@
     "wochenstunden": 19,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["WerkstudentIn"],
-    "teamsUndZugehoerigkeiten": ["Werkstudent:innen", "RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "WerkstudentIn"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Werkstudent:innen",
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -534,8 +702,13 @@
     "wochenstunden": 10,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["TZ_10H"],
-    "teamsUndZugehoerigkeiten": ["Buzz", "Werkstudent:innen"],
+    "rollenUndQualifikationen": [
+      "TZ_10H"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Buzz",
+      "Werkstudent:innen"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -549,8 +722,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24JOBS"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24JOBS"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -564,8 +741,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -579,8 +761,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -594,8 +780,12 @@
     "wochenstunden": 40,
     "cvd": true,
     "notizen": "",
-    "rollenUndQualifikationen": ["CVD" ],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "CVD"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -609,8 +799,13 @@
     "wochenstunden": 19,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["WerkstudentIn"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "WerkstudentIn"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -624,8 +819,12 @@
     "wochenstunden": 20,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["TZ_20H"],
-    "teamsUndZugehoerigkeiten": ["Buzz"],
+    "rollenUndQualifikationen": [
+      "TZ_20H"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "Buzz"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -639,8 +838,13 @@
     "wochenstunden": 15,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": [ "TZ_15H"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Werkstudent:innen"],
+    "rollenUndQualifikationen": [
+      "TZ_15H"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Werkstudent:innen"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -654,8 +858,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -669,8 +878,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -684,8 +898,12 @@
     "wochenstunden": 30,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["TZ_30H"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "TZ_30H"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -699,8 +917,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -714,8 +937,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Ressort: Sport"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Ressort: Sport"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -729,8 +957,12 @@
     "wochenstunden": 20,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["TZ_20H"],
-    "teamsUndZugehoerigkeiten": ["RUHR24JOBS"],
+    "rollenUndQualifikationen": [
+      "TZ_20H"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24JOBS"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -744,8 +976,13 @@
     "wochenstunden": 19,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["WerkstudentIn"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Volontariat"],
+    "rollenUndQualifikationen": [
+      "WerkstudentIn"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Volontariat"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -759,8 +996,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -774,8 +1015,13 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["REDAKTION"],
-    "teamsUndZugehoerigkeiten": ["RUHR24.de", "Video"],
+    "rollenUndQualifikationen": [
+      "REDAKTION"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24.de",
+      "Video"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -789,8 +1035,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["JOBS"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "JOBS"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -804,8 +1054,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["JOBS"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "JOBS"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -819,8 +1073,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -834,8 +1092,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   },
@@ -849,8 +1111,12 @@
     "wochenstunden": 40,
     "cvd": false,
     "notizen": "",
-    "rollenUndQualifikationen": ["NonOps"],
-    "teamsUndZugehoerigkeiten": ["RUHR24 GmbH"],
+    "rollenUndQualifikationen": [
+      "NonOps"
+    ],
+    "teamsUndZugehoerigkeiten": [
+      "RUHR24 GmbH"
+    ],
     "wunschschichten": [],
     "urlaubtageSet": []
   }

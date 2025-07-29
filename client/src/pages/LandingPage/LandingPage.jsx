@@ -4,6 +4,8 @@ import { Button } from '@mantine/core';
 import styles from './LandingPage.module.css';
 import rocketImage from '../../assets/rocket.png'; 
 import Starfield from '../../components/Starfield/Starfield'; 
+import moonImage from '../../assets/moon.png';
+
 
 function LandingPage() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -27,6 +29,11 @@ function LandingPage() {
     <div className={styles.landingContainer}>
         <div className={styles.starfieldContainer}>
             <Starfield />
+            <img
+              src={moonImage}
+              alt="Mond"
+              className={styles.floatingMoon}
+            />
         </div>
 
       <img
@@ -37,6 +44,7 @@ function LandingPage() {
           transform: `translate(${position.x}px, ${position.y}px)`
         }}
       />
+
       <div className={styles.content}>
         <h1>Willkommen zum Schichtplaner</h1>
         <p>Bei Bugs oder kleineren Fehlern bitte Feedback an Artur.</p>

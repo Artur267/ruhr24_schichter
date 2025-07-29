@@ -7,7 +7,7 @@ import PlanungErstellen from './pages/PlanungErstellen/PlanungErstellen'; // Fü
 import LandingPage from './pages/LandingPage/LandingPage';
 import MitarbeiterVerwaltung from './pages/MitarbeiterVerwaltung/MitarbeiterVerwaltung'; // Für später
 import PlanBearbeiten from './pages/PlanBearbeiten/PlanBearbeiten';
-
+import Wunschplanung from './pages/Wunschplanung/Wunschplanung'; // Import der Wunschplanung
 
 function App() {
   return (
@@ -20,6 +20,7 @@ function App() {
           <Route path="/betrachten" element={<SchichtplanAnsicht />} />
           <Route path="/mitarbeiter-verwalten" element={<MitarbeiterVerwaltung />} />
           <Route path="/bearbeiten" element={<PlanBearbeiten />} />
+          <Route path="/wunschplanung" element={<Wunschplanung />} />
           {/* Hier können weitere Routen hinzugefügt werden */}
 
         </Routes>

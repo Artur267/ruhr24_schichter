@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.ruhr24.schichter.domain.Mitarbeiter;
+import com.ruhr24.schichter.domain.Wunsch;
 
 // Ein DTO (Data Transfer Object) um die eingehenden Daten zu empfangen
 public class PlanungsanfrageDto {
@@ -18,6 +19,8 @@ public class PlanungsanfrageDto {
     private String ressort;
 
     private List<Mitarbeiter> mitarbeiterList; // Mitarbeiter werden direkt im DTO empfangen
+
+    private List<Wunsch> wuensche;
 
     // Konstruktor (optional, aber hilfreich)
     public PlanungsanfrageDto() {
@@ -63,6 +66,14 @@ public class PlanungsanfrageDto {
         this.mitarbeiterList = mitarbeiterList;
     }
 
+    public List<Wunsch> getWuensche() {
+        return wuensche;
+    }
+
+    public void setWuensche(List<Wunsch> wuensche) {
+        this.wuensche = wuensche;
+    }
+    
     @Override
     public String toString() {
         return "PlanungsanfrageDto{" +

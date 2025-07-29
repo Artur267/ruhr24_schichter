@@ -1,0 +1,50 @@
+[
+  {
+    "datum": "2025-07-28T11:14:33.690Z",
+    "typ": "Muss",
+    "von": "08:00",
+    "bis": "16:30",
+    "mitarbeiterId": "057"
+  },
+  {
+    "datum": "2025-07-29T11:14:33.690Z",
+    "typ": "Frei (nicht verfügbar)",
+    "mitarbeiterId": "057"
+  },
+  {
+    "datum": "2025-07-28T12:07:15.816Z",
+    "typ": "Muss",
+    "von": "08:00",
+    "bis": "16:30",
+    "mitarbeiterId": "004"
+  },
+  {
+    "datum": "2025-07-29T12:07:15.816Z",
+    "typ": "Frei (nicht verfügbar)",
+    "mitarbeiterId": "004"
+  },
+  {
+    "datum": "2025-07-28T12:33:54.392Z",
+    "typ": "Muss",
+    "von": "08:00",
+    "bis": "16:30",
+    "mitarbeiterId": "002"
+  },
+  {
+    "datum": "2025-07-29T12:33:54.392Z",
+    "typ": "Frei (nicht verfügbar)",
+    "mitarbeiterId": "002"
+  },
+  {
+    "datum": "2025-07-29T08:40:46.983Z",
+    "typ": "Muss",
+    "von": "08:00",
+    "bis": "16:30",
+    "mitarbeiterId": "001"
+  },
+  {
+    "datum": "2025-07-30T08:40:46.983Z",
+    "typ": "Frei (nicht verfügbar)",
+    "mitarbeiterId": "001"
+  }
+]

@@ -59,6 +59,7 @@ public class SolverController {
     
     @PostMapping("/solve")
     public ResponseEntity<Map<String, Object>> solve(@RequestBody PlanungsanfrageDto requestDto) {
+        System.out.println("[TEST] Wünsche erhalten: " + (requestDto.getWuensche() != null ? requestDto.getWuensche().size() : "keine"));
         LocalDate vonDatum = requestDto.getVon();
         LocalDate bisDatum = requestDto.getBis();
 

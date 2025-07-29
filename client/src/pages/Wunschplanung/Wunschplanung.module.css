@@ -1,0 +1,22 @@
+.container {
+    padding: 2rem;
+    max-width: 900px;
+    margin: auto;
+}
+
+.box {
+    background-color: var(--mantine-color-gray-0);
+    padding: 1.5rem;
+    border-radius: var(--mantine-radius-md);
+    margin-bottom: 2rem;
+}
+
+.wishList {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.wishItem {
+    align-items: flex-end;
+}

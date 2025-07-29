@@ -10,6 +10,7 @@ function Navbar() {
       <NavLink to="/betrachten" className={({ isActive }) => isActive ? styles.active : ''}>Plan Betrachten</NavLink>
       <NavLink to="/bearbeiten" className={({ isActive }) => isActive ? styles.active : ''}>Plan Bearbeiten</NavLink>
       <NavLink to="/mitarbeiter-verwalten" className={({ isActive }) => isActive ? styles.active : ''}>Mitarbeiter Verwalten</NavLink>
+      <NavLink to="/wunschplanung" className={({ isActive }) => isActive ? styles.active : ''}>Wunschplanung</NavLink>
     </nav>
   );
 }

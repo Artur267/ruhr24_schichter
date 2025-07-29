@@ -1,8 +1,11 @@
 .navbar {
-    display: flex;
-    justify-content: center;
-    margin-left: 40rem;
-    gap: 20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 10px 20px;     
+  width: 100%;
+  box-sizing: border-box;
 }
 .navbar a {
     color: #444444;
@@ -10,11 +13,13 @@
     padding: 5px 10px;
     border-radius: 4px;
     transition: background-color 0.2s;
-    font-size: larger;
+    font-size: large;
 }
 .navbar a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: #ee7203;
+    color: #fff;
 }
 .navbar .active {
-    background-color: #ee7203; /* Deine Akzentfarbe */
+    background-color: #ee7203;
+    color: #fff;
 }

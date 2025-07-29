@@ -7,6 +7,12 @@ export const SCHICHT_TYPEN = {
     'default':     { title: 'Andere', color: '#95a5a6' }
 };
 
+export const WUNSCH_TYPEN = {
+    MUSS: 'Muss',
+    KANN: 'Wunsch',
+    FREI: 'Frei (nicht verfügbar)',
+};
+
 export function formatTime(date) {
   return date.toLocaleTimeString('de-DE', {
     hour: '2-digit',

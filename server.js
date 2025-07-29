@@ -24,6 +24,7 @@ const PORT = 3000;
 // --- Konstanten ---
 const EMPLOYEE_PATH = path.join(__dirname, 'data', 'mitarbeiter.json');
 const CALENDAR_CSV_PATH = path.join(__dirname, 'java', 'optaplanner', 'results', 'output.csv');
+const WUNSCH_PATH = path.join(__dirname, 'data', 'wuensche.json');
 
 // --- Middleware ---
 app.use(expressLayouts);
@@ -50,8 +51,29 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Funktionen
+async function loadWishes() {
+    try {
+        // Erstelle die Datei, falls sie nicht existiert
+        if (!fs.existsSync(WUNSCH_PATH)) {
+            await fs.promises.writeFile(WUNSCH_PATH, JSON.stringify([], null, 2), 'utf8');
+            return [];
+        }
+        const data = await fs.promises.readFile(WUNSCH_PATH, 'utf8');
+        return JSON.parse(data);
+    } catch (err) {
+        console.error("Fehler beim Laden der Wunschschichten:", err);
+        return [];
+    }
+}
 
+async function saveWishes(data) {
+    try {
+        await fs.promises.writeFile(WUNSCH_PATH, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+        console.error("Fehler beim Speichern der Wunschschichten:", err);
+        throw err;
+    }
+}
 
 function processSolutionForDatabase(solution) {
     if (!solution || !Array.isArray(solution.mitarbeiterList)) {
@@ -455,6 +477,37 @@ app.delete('/richtlinie/:id', (req, res) => {
     });
 });
 
+app.get('/api/wuensche/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const allWishes = await loadWishes();
+        const userWishes = allWishes.filter(w => w.mitarbeiterId === userId);
+        res.json(userWishes);
+    } catch (error) {
+        res.status(500).json({ error: 'Fehler beim Laden der Wünsche.' });
+    }
+});
+
+// Speichert/Überschreibt alle Wünsche für einen bestimmten Mitarbeiter
+app.put('/api/wuensche/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const newWishesForUser = req.body; // Erwartet ein Array von Wunsch-Objekten
+
+    try {
+        const allWishes = await loadWishes();
+        // Entferne alle alten Wünsche dieses Mitarbeiters
+        const otherWishes = allWishes.filter(w => w.mitarbeiterId !== userId);
+        
+        // Füge die neuen Wünsche hinzu (jeder Wunsch bekommt die mitarbeiterId)
+        const updatedWishes = newWishesForUser.map(w => ({ ...w, mitarbeiterId: userId }));
+
+        await saveWishes([...otherWishes, ...updatedWishes]);
+        res.json({ message: 'Wünsche erfolgreich gespeichert.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Fehler beim Speichern der Wünsche.' });
+    }
+});
+
 app.put('/api/schicht/:eventId', async (req, res) => {
     const { eventId } = req.params;
     const { neuesDatum, von, bis, resourceId } = req.body;
@@ -824,7 +877,7 @@ app.post('/richtlinie', (req, res) => {
 
 app.post("/api/starte-scheduler", async (req, res) => {
     const { von, bis, ressort, mitarbeiterList } = req.body;
-
+    const alleWuensche = await loadWishes();
     console.log("[NODE.JS PROXY] Empfange Anfrage für /starte-scheduler.");
     console.log("[NODE.JS PROXY] Empfangene Daten (von, bis, ressort):", von, bis, ressort);
     console.log("[NODE.JS PROXY] Anzahl Mitarbeiter:", mitarbeiterList ? mitarbeiterList.length : 0);
@@ -848,7 +901,8 @@ app.post("/api/starte-scheduler", async (req, res) => {
                 teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [],
                 wunschschichten: mitarbeiter.wunschschichten ?? [],
                 urlaubtageSet: mitarbeiter.urlaubtageSet ?? []
-            }))
+            })),
+            wuensche: alleWuensche
         };
         // URL zum Java-Backend: /api/solve (POST)
         console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/solve)...");
@@ -943,6 +997,37 @@ app.post("/starte-scheduler", async (req, res) => {
         } else {
             res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
         }
+    }
+});
+
+app.get('/api/wuensche', async (req, res) => {
+    const allWishes = await loadWishes(); // Deine Funktion zum Lesen der wuensche.json
+    res.json(allWishes);
+});
+
+app.put('/api/mitarbeiter/:id', async (req, res) => {
+    const { id } = req.params;
+    // Nimm alle Daten außer den Wunschschichten, um Überschreiben zu verhindern
+    const { wunschschichten, ...updatedMitarbeiterData } = req.body;
+
+    try {
+        const mitarbeiterData = await fs.promises.readFile(EMPLOYEE_PATH, 'utf8');
+        const mitarbeiterList = JSON.parse(mitarbeiterData);
+
+        const index = mitarbeiterList.findIndex(m => m.id === id);
+        if (index === -1) {
+            return res.status(404).json({ error: 'Mitarbeiter nicht gefunden.' });
+        }
+
+        // Führe die alten Daten mit den neuen zusammen, um nichts zu verlieren
+        mitarbeiterList[index] = { ...mitarbeiterList[index], ...updatedMitarbeiterData };
+
+        await fs.promises.writeFile(EMPLOYEE_PATH, JSON.stringify(mitarbeiterList, null, 2), 'utf8');
+        
+        res.json({ message: 'Mitarbeiter erfolgreich aktualisiert.' });
+    } catch (error) {
+        console.error("Fehler beim Speichern des Mitarbeiters:", error);
+        res.status(500).json({ error: 'Serverfehler beim Speichern.' });
     }
 });
 

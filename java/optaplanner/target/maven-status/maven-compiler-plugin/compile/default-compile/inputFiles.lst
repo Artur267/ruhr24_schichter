@@ -1,6 +1,8 @@
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Schicht.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/WunschTyp.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/SchichtTyp.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/generator/MusterGenerator.java
+/Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Wunsch.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/controller/PlanningController.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/controller/SolverController.java
 /Users/artur.donis/Desktop/Dev/03_projects/ruhr24_schichter/java/optaplanner/src/main/java/com/ruhr24/schichter/domain/Ressort.java

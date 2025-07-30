@@ -5,12 +5,12 @@ import styles from './Navbar.module.css';
 function Navbar() {
   return (
     <nav className={styles.navbar}>
-      <NavLink to="/" className={({ isActive }) => isActive ? styles.active : ''}>Übersicht</NavLink>
-      <NavLink to="/erstellen" className={({ isActive }) => isActive ? styles.active : ''}>Planung Erstellen</NavLink>
-      <NavLink to="/betrachten" className={({ isActive }) => isActive ? styles.active : ''}>Plan Betrachten</NavLink>
-      <NavLink to="/bearbeiten" className={({ isActive }) => isActive ? styles.active : ''}>Plan Bearbeiten</NavLink>
+      <NavLink to="/" className={({ isActive }) => isActive ? styles.active : ''}>Home</NavLink>
+      <NavLink to="/erstellen" className={({ isActive }) => isActive ? styles.active : ''}>Schichtplan Erstellen</NavLink>
+      <NavLink to="/betrachten" className={({ isActive }) => isActive ? styles.active : ''}>Schichtplan Betrachten</NavLink>
+      <NavLink to="/bearbeiten" className={({ isActive }) => isActive ? styles.active : ''}>Schichtplan Bearbeiten</NavLink>
       <NavLink to="/mitarbeiter-verwalten" className={({ isActive }) => isActive ? styles.active : ''}>Mitarbeiter Verwalten</NavLink>
-      <NavLink to="/wunschplanung" className={({ isActive }) => isActive ? styles.active : ''}>Wunschplanung</NavLink>
+      <NavLink to="/wunschplanung" className={({ isActive }) => isActive ? styles.active : ''}>Wünsche Bearbeiten</NavLink>
     </nav>
   );
 }

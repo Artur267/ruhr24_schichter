@@ -1,9 +1,9 @@
 // client/src/pages/Wunschplanung/Wunschplanung.jsx
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Textarea, Button, Group, Box, Text, Select, ActionIcon, SimpleGrid, TextInput, Accordion, Badge } from '@mantine/core';
+import { Textarea, Button, Group, Box, Text, Select, ActionIcon, SimpleGrid, TextInput, Accordion, Badge, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { IconX, IconSparkles, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconX, IconSparkles, IconDeviceFloppy, IconTrash } from '@tabler/icons-react';
 import 'dayjs/locale/de';
 import styles from './Wunschplanung.module.css';
 import { WUNSCH_TYPEN } from '../../utils.js';

@@ -1,6 +1,8 @@
+/* client/src/pages/Wunschplanung/Wunschplanung.module.css */
+
 .container {
     padding: 2rem;
-    max-width: 900px;
+    max-width: 1400px; /* Mehr Platz für die Übersicht */
     margin: auto;
 }
 
@@ -8,15 +10,37 @@
     background-color: var(--mantine-color-gray-0);
     padding: 1.5rem;
     border-radius: var(--mantine-radius-md);
-    margin-bottom: 2rem;
+    border: 1px solid var(--mantine-color-gray-2);
+    height: 100%; /* Sorgt dafür, dass die Boxen gleich hoch sind */
 }
 
 .wishList {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    max-height: 400px; /* Verhindert, dass die Box zu lang wird */
+    overflow-y: auto; /* Fügt einen Scrollbalken hinzu, wenn nötig */
+    padding-right: 0.5rem;
 }
 
 .wishItem {
     align-items: flex-end;
+    padding: 0.75rem;
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-gray-1);
+    border: 1px solid var(--mantine-color-gray-3);
+}
+
+.dateInput {
+    flex-grow: 2;
+}
+
+.overviewBox {
+    border-top: 1px solid var(--mantine-color-gray-3);
+}
+
+/* Stil für die Accordion in der Übersicht */
+.overviewBox :global(.mantine-Accordion-item) {
+    background-color: var(--mantine-color-gray-0);
+    border: 1px solid var(--mantine-color-gray-2);
 }

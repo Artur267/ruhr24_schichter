@@ -63,7 +63,7 @@ public class SolverController {
         LocalDate vonDatum = requestDto.getVon();
         LocalDate bisDatum = requestDto.getBis();
 
-        List<Arbeitsmuster> muster = musterGenerator.generate(vonDatum, bisDatum, requestDto.getMitarbeiterList());
+        List<Arbeitsmuster> muster = musterGenerator.generate(vonDatum, bisDatum, requestDto.getMitarbeiterList(), requestDto.getWuensche());
         SchichtPlan problem = new SchichtPlan(
             UUID.randomUUID(),
             vonDatum,

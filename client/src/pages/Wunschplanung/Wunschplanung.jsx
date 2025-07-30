@@ -102,6 +102,10 @@ function Wunschplanung() {
             i === index ? { ...wish, [field]: value } : wish
         ));
     };
+
+    const handleClearAllWishes = () => {
+        setWuensche([]);
+    };
     
     const handleSaveAllWishes = async () => {
         if (!selectedMitarbeiterId) return alert("Bitte zuerst einen Mitarbeiter auswählen.");
@@ -114,12 +118,8 @@ function Wunschplanung() {
             if (!response.ok) throw new Error('Fehler beim Speichern.');
             alert("Wünsche erfolgreich gespeichert!");
             
-            // KORREKTUR: Aktualisiere den lokalen State direkt, anstatt alles neu zu laden.
-            // 1. Entferne die alten Wünsche des aktuellen Mitarbeiters aus der Gesamtliste.
             const otherWishes = allWishes.filter(w => w.mitarbeiterId !== selectedMitarbeiterId);
-            // 2. Füge die neuen, gespeicherten Wünsche hinzu.
             const newAllWishes = [...otherWishes, ...wuensche];
-            // 3. Setze den State, was die Übersicht automatisch aktualisiert.
             setAllWishes(newAllWishes);
 
         } catch (error) {
@@ -169,7 +169,12 @@ function Wunschplanung() {
                         </Box>
 
                         <Box className={styles.box}>
-                            <h2>Strukturierte Wünsche für {mitarbeiterList.find(m => m.id === selectedMitarbeiterId)?.vorname}</h2>
+                            <Group justify="space-between" mb="sm">
+                                <h2>Strukturierte Wünsche</h2>
+                                <Button onClick={handleClearAllWishes} color="red" variant="subtle" size="xs" disabled={wuensche.length === 0}>
+                                    Alle entfernen
+                                </Button>
+                            </Group>
                             <div className={styles.wishList}>
                                 {wuensche.map((wish, index) => (
                                     <Group key={index} className={styles.wishItem} grow>
@@ -198,9 +203,11 @@ function Wunschplanung() {
                                                 }}
                                             />
                                         )}
-                                        <ActionIcon color="red" variant="subtle" onClick={() => removeWish(index)}>
-                                            <IconX size={18} />
-                                        </ActionIcon>
+                                        <Tooltip label="Wunsch entfernen">
+                                            <ActionIcon color="red" variant="subtle" onClick={() => removeWish(index)}>
+                                                <IconTrash size={18} />
+                                            </ActionIcon>
+                                        </Tooltip>
                                     </Group>
                                 ))}
                             </div>

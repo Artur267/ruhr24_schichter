@@ -3,14 +3,20 @@ package com.ruhr24.schichter.generator;
 import com.ruhr24.schichter.domain.Arbeitsmuster;
 import com.ruhr24.schichter.domain.Mitarbeiter;
 import com.ruhr24.schichter.domain.Schicht;
+import com.ruhr24.schichter.domain.Wunsch;
+import com.ruhr24.schichter.domain.WunschTyp;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.WeekFields;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,9 +51,10 @@ public class MusterGenerator {
     private static final int TZ_15H_WOCHEN_PRO_WOCHE = 2;
     private static final int TZ_10H_WOCHEN_PRO_WOCHE = 1;
 
-
-    public List<Arbeitsmuster> generate(LocalDate von, LocalDate bis, List<Mitarbeiter> mitarbeiterList) {
+    /*
+    public List<Arbeitsmuster> generate(LocalDate von, LocalDate bis, List<Mitarbeiter> mitarbeiterList, List<Wunsch> alleWuensche) {
         List<Arbeitsmuster> musterPool = new ArrayList<>();
+
         LocalDate startWoche = von.with(DayOfWeek.MONDAY);
         while (!startWoche.isAfter(bis)) {
             int wocheDesJahres = startWoche.get(WeekFields.of(Locale.GERMANY).weekOfWeekBasedYear());
@@ -123,21 +130,135 @@ public class MusterGenerator {
         System.out.println("Gesamtanzahl erstellter Muster: " + musterPool.size());
         return musterPool;
     }
+    */
+
+
+    public List<Arbeitsmuster> generate(LocalDate vonDatum, LocalDate bisDatum, List<Mitarbeiter> mitarbeiterList, List<Wunsch> alleWuensche) {
+        List<Arbeitsmuster> alleMuster = new ArrayList<>();
+
+        // Gruppiere alle Wünsche nach Mitarbeiter-ID für schnellen Zugriff
+        Map<String, List<Wunsch>> wuenscheProMitarbeiter = alleWuensche.stream()
+                .collect(Collectors.groupingBy(Wunsch::getMitarbeiterId));
+
+        for (Mitarbeiter mitarbeiter : mitarbeiterList) {
+            LocalDate startWoche = vonDatum.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            
+            while (!startWoche.isAfter(bisDatum)) {
+                final LocalDate aktuelleWocheStart = startWoche;
+                int wocheDesJahres = aktuelleWocheStart.get(WeekFields.of(Locale.GERMANY).weekOfWeekBasedYear());
+                
+                // Finde die Wünsche für diesen Mitarbeiter in dieser Woche
+                List<Wunsch> wochenWuensche = (wuenscheProMitarbeiter.get(mitarbeiter.getId()) != null)
+                    ? wuenscheProMitarbeiter.get(mitarbeiter.getId()).stream()
+                        .filter(w -> {
+                            // Konvertiere das Date-Objekt des Wunsches zu LocalDate für den Vergleich
+                            LocalDate wunschDatum = w.getDatum().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                            return !wunschDatum.isBefore(aktuelleWocheStart) && wunschDatum.isBefore(aktuelleWocheStart.plusWeeks(1));
+                        })
+                        .collect(Collectors.toList())
+                    : Collections.emptyList();
+
+                // NEUE LOGIK: Entscheide, welche Muster erstellt werden
+                if (wochenWuensche.stream().anyMatch(w -> w.getTyp() == WunschTyp.MUSS)) {
+                    // Wenn es MUSS-Wünsche gibt, erstelle NUR die Wunsch-Muster für diese Woche
+                    alleMuster.addAll(createWunschMuster(mitarbeiter, wochenWuensche, wocheDesJahres));
+                } else {
+                    // Ansonsten, erstelle die Standard-Muster für diesen Mitarbeiter
+                    alleMuster.addAll(createStandardMusterFuerWoche(mitarbeiter, wocheDesJahres, aktuelleWocheStart));
+                }
+                
+                startWoche = startWoche.plusWeeks(1);
+            }
+        }
+        System.out.println("--- Erstellte Arbeitsmuster ---");
+        for (Arbeitsmuster muster : alleMuster) {
+            System.out.println(
+                String.format("Woche: %d, Typ: %-30s, Stunden: %d, Schichten: %d",
+                    muster.getWocheImJahr(),
+                    "'" + muster.getMusterTyp() + "'",
+                    muster.getWochenstunden(),
+                    muster.getSchichten().size()
+                )
+            );
+        }
+
+        System.out.println("===============================");
+        System.out.println("Gesamtanzahl erstellter Muster: " + alleMuster.size());
+        return alleMuster;
+    }
+
+        private List<Arbeitsmuster> createWunschMuster(Mitarbeiter mitarbeiter, List<Wunsch> wuensche, int woche) {
+        List<Arbeitsmuster> wunschMuster = new ArrayList<>();
+        
+        List<Schicht> mussSchichten = wuensche.stream()
+            .filter(w -> w.getTyp() == WunschTyp.MUSS && w.getVon() != null)
+            .map(w -> createSchicht(w.getDatum().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate(), w.getVon().toString(), w.getBis().toString(), "WUNSCH_MUSS"))
+            .collect(Collectors.toList());
+            
+        if (!mussSchichten.isEmpty()) {
+            Arbeitsmuster muster = new Arbeitsmuster(
+                "WUNSCH_MUSS_" + mitarbeiter.getNachname().toUpperCase(), 
+                // Stundenzahl muss hier noch berechnet werden, falls relevant
+                0, 
+                woche, 
+                mussSchichten
+            );
+            // Wichtig: Wir setzen den Mitarbeiter direkt fest, da dies ein harter Wunsch ist.
+            muster.setMitarbeiter(mitarbeiter); 
+            wunschMuster.add(muster);
+        }
+        
+        return wunschMuster;
+    }
+    private List<Arbeitsmuster> createStandardMusterFuerWoche(Mitarbeiter mitarbeiter, int woche, LocalDate start) {
+        Set<String> qualifikationen = new HashSet<>(mitarbeiter.getRollenUndQualifikationen());
+
+        // 1. Prüfe auf Sonderfall-Qualifikationen
+        if (qualifikationen.contains("LIBE_SONDERDIENST")) {
+            return List.of(createLisaBenderWoche(woche, start));
+        }
+        if (qualifikationen.contains("DANIELE_SONDERDIENST")) {
+            return List.of(createDanieleNormalwoche(woche, start));
+        }
+        
+        // 2. Prüfe auf generische Qualifikationen
+        if (qualifikationen.contains("CVD")) {
+            return List.of(createCvdWoche(woche, start, "CVD_KERN"));
+        }
+        if (qualifikationen.contains("REDAKTION")) {
+            return List.of(createRedaktionWoche(woche, start));
+        }
+        if (qualifikationen.contains("NonOps")) {
+             // Annahme: NonOps ist wie Admin
+            return List.of(createAdminWoche(woche, start));
+        }
+
+        // 3. Fallback: Prüfe basierend auf den Wochenstunden
+        int stunden = mitarbeiter.getWochenstunden();
+        switch (stunden) {
+            case 30: return List.of(createTeilzeitWoche30h(woche, start));
+            case 24: return List.of(createTeilzeitWoche24h(woche, start));
+            case 20: return List.of(createTeilzeitWoche20h(woche, start));
+            case 19: return List.of(createTeilzeitWoche19h(woche, start));
+            case 15: return List.of(createTeilzeitWoche15h(woche, start));
+            case 10: return List.of(createTeilzeitWoche10h(woche, start));
+            default:
+                // Wenn nichts zutrifft, erstelle keine Muster für diesen Mitarbeiter
+                return Collections.emptyList();
+        }
+    }
+
 
     // --- HILFSMETHODEN ---
-
     private Schicht createSchicht(LocalDate datum, String start, String ende, String typ) {
         return new Schicht(UUID.randomUUID(), datum, LocalTime.parse(start), LocalTime.parse(ende), "Bedarf", 1, typ, false);
     }
     
     private Arbeitsmuster createLisaBenderWoche(int woche, LocalDate start) {
         List<Schicht> schichten = new ArrayList<>();
-        // Mo-Do, 5h-Schicht
         for (int i = 0; i < 4; i++) {
-            // Nimmt die 5-Stunden-Dienst Zeit aus deinem Kommentar
             schichten.add(createSchicht(start.plusDays(i), "08:00:00", "13:00:00", "5h-Dienst"));
         }
-        // Der musterTyp ist das "Etikett", das zur Qualifikation passt
         return new Arbeitsmuster("LIBE_SONDERDIENST", 20, woche, schichten);
     }
 

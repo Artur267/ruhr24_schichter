@@ -12,7 +12,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 public enum WunschTyp {
     MUSS,
     KANN,
-    FREI;
+    FREI,
+    PREFLIGHT;
 
     @JsonCreator
     public static WunschTyp fromString(String value) {

@@ -3,6 +3,7 @@ package com.ruhr24.schichter.domain;
 import com.ruhr24.schichter.solver.ArbeitsmusterDifficultyComparator;
 import com.ruhr24.schichter.solver.MitarbeiterStrengthComparator;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
+import org.optaplanner.core.api.domain.entity.PlanningPin;
 import org.optaplanner.core.api.domain.lookup.PlanningId;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import java.util.List;
@@ -20,6 +21,9 @@ public class Arbeitsmuster {
 
     @PlanningVariable(valueRangeProviderRefs = {"mitarbeiterRange"}, strengthComparatorClass = MitarbeiterStrengthComparator.class)
     private Mitarbeiter mitarbeiter;
+
+    @PlanningPin
+    private boolean pinned = false; 
 
     // OptaPlanner benötigt einen leeren Konstruktor
     public Arbeitsmuster() {}
@@ -64,6 +68,14 @@ public class Arbeitsmuster {
 
     public void setMitarbeiter(Mitarbeiter mitarbeiter) {
         this.mitarbeiter = mitarbeiter;
+    }
+
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
 
     @Override

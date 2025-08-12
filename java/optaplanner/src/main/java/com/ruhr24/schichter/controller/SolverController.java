@@ -63,16 +63,18 @@ public class SolverController {
         LocalDate vonDatum = requestDto.getVon();
         LocalDate bisDatum = requestDto.getBis();
 
-        List<Arbeitsmuster> muster = musterGenerator.generate(vonDatum, bisDatum, requestDto.getMitarbeiterList(), requestDto.getWuensche());
+        List<Arbeitsmuster> muster = musterGenerator.generate(vonDatum, bisDatum, requestDto.getMitarbeiterList(), requestDto.getWuensche(), requestDto.getAlleAbwesenheiten());
+
         SchichtPlan problem = new SchichtPlan(
             UUID.randomUUID(),
             vonDatum,
             bisDatum,
             requestDto.getRessort(),
             requestDto.getMitarbeiterList(),
-            muster, // Wichtig: hier die Musterliste übergeben
-            new HashSet<>()
-        );
+            muster,
+            new HashSet<>(), // Das ist für die publicHolidays
+            requestDto.getAlleAbwesenheiten() // HIER IST DAS FEHLENDE ARGUMENT
+        );                  
 
         UUID problemId = problem.getId();
         solutionStore.putProblem(problemId, problem);

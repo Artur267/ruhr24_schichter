@@ -11,6 +11,7 @@ function Navbar() {
       <NavLink to="/bearbeiten" className={({ isActive }) => isActive ? styles.active : ''}>Schichtplan Bearbeiten</NavLink>
       <NavLink to="/mitarbeiter-verwalten" className={({ isActive }) => isActive ? styles.active : ''}>Mitarbeiter Verwalten</NavLink>
       <NavLink to="/wunschplanung" className={({ isActive }) => isActive ? styles.active : ''}>Wünsche Bearbeiten</NavLink>
+      <NavLink to="/preflight-planung" className={({ isActive }) => isActive ? styles.active : ''}>PreFlight (BETA)</NavLink>
     </nav>
   );
 }

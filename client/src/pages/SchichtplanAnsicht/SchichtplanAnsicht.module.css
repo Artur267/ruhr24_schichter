@@ -1,38 +1,93 @@
 /* SchichtplanAnsicht.module.css */
 
+/* Grund-Layout */
 .container {
-    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    background-color: #f8f9fa;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
 }
 
 .searchInput {
-    margin-bottom: 1rem;
-    max-width: 400px;
+    max-width: 300px;
 }
 
-.calendarWrapper :global(.fc-timeline-lane-frame) {
-    height: 45px !important; /* Macht die Zeilen etwas höher und lesbarer */
+.calendarWrapper {
+    flex-grow: 1;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
-.calendarWrapper :global(.fc-datagrid-cell-main) {
+.calendarWrapper :global(.scheduler_default_main) {
+    border-radius: 8px;
+    border: none;
+}
+
+.calendarWrapper :global(.scheduler_default_rowheader_inner) {
+    white-space: nowrap !important;
     font-weight: 500;
 }
 
-.calendarWrapper :global(.feiertag-zelle) {
-    background-color: #9da0a3 !important; /* Helles Grau für Feiertage */
+/* ==================================================================== */
+/* STYLING FÜR NORMALE EVENTS (SCHICHTEN)                               */
+/* ==================================================================== */
+
+.calendarWrapper :global(.scheduler_default_event) {
+    margin: 4px 2px !important;
+    border-radius: 6px !important;
+    border: none !important; 
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.headerButton {
-    background: none;
-    border: none;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    padding: 0;
-    width: 100%;
+.calendarWrapper :global(.scheduler_default_event:hover) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.calendarWrapper :global(.scheduler_default_event_inner) {
+    font-weight: 500;
+    padding: 5px 8px !important;
+    color: white !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
     height: 100%;
-    text-align: center;
 }
 
-.headerButton:hover {
-    background-color: rgba(0,0,0,0.1);
+/* ==================================================================== */
+/* NEUES STYLING FÜR ABWESENHEITEN (GANZTÄGIGE EVENTS)                  */
+/* ==================================================================== */
+
+/* Haupt-Container des ganztägigen Events */
+.calendarWrapper :global(.scheduler_default_event.scheduler_default_event_allday) {
+    border-radius: 6px !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    
+    /* Stellt sicher, dass der Block die volle Höhe hat und zentriert ist */
+    top: 4px !important;
+    bottom: 4px !important;
+    height: auto !important;
+    display: flex;
+    align-items: center;
+}
+
+/* Innerer Container mit dem Text */
+.calendarWrapper :global(.scheduler_default_event_allday .scheduler_default_event_inner) {
+    font-weight: 600 !important; /* Etwas dickerer Text */
+    padding: 5px 8px !important;
+    text-shadow: none !important; /* Entfernt den Schatten für bessere Lesbarkeit */
 }

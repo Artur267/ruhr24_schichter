@@ -1,4 +1,4 @@
-import 'dotenv/config'; // Direkter Import, der dotenv konfiguriert
+import 'dotenv/config'; 
 import express from 'express';
 import expressLayouts from 'express-ejs-layouts';
 import bodyParser from 'body-parser';
@@ -9,24 +9,18 @@ import fs, { promises as fsPromises } from 'fs';
 import csv from 'csv-parser';
 import multer from 'multer';
 import { JSONFilePreset } from 'lowdb/node';
+import xlsx from 'xlsx';
 
-// --- WICHTIG: __dirname in ES-Modulen nachbauen ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// --- Datenbank-Initialisierung ---
-const defaultData = { plans: [] };
+const defaultData = { plans: [], abwesenheiten: [] }; 
 const db = await JSONFilePreset(path.join(__dirname, 'db.json'), defaultData);
-
 const app = express();
 const PORT = 3000;
-
-// --- Konstanten ---
 const EMPLOYEE_PATH = path.join(__dirname, 'data', 'mitarbeiter.json');
 const CALENDAR_CSV_PATH = path.join(__dirname, 'java', 'optaplanner', 'results', 'output.csv');
 const WUNSCH_PATH = path.join(__dirname, 'data', 'wuensche.json');
 
-// --- Middleware ---
 app.use(expressLayouts);
 app.set('layout', 'layout');
 app.set('view engine', 'ejs');
@@ -34,7 +28,6 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
-// Multer Konfiguration
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
         try {
@@ -51,19 +44,123 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-async function loadWishes() {
+const memoryUpload = multer({ storage: multer.memoryStorage() });
+
+app.post('/api/import/absences', memoryUpload.single('absenceFile'), async (req, res) => {
+    console.log('[API] Abwesenheits-Import gestartet...');
+    if (!req.file) {
+        return res.status(400).json({ message: 'Keine Datei hochgeladen.' });
+    }
+
     try {
-        // Erstelle die Datei, falls sie nicht existiert
-        if (!fs.existsSync(WUNSCH_PATH)) {
-            await fs.promises.writeFile(WUNSCH_PATH, JSON.stringify([], null, 2), 'utf8');
-            return [];
+        const mitarbeiterListe = loadEmployees(); // Lade deine Mitarbeiter-Stammdaten
+        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // --- HIER PASSIERT DIE "ENTSCHLÜSSELUNG" ---
+        const { abwesenheiten, monat, jahr } = parseFactorialExport(jsonData, mitarbeiterListe);
+        
+        console.log(`[API] ${abwesenheiten.length} Abwesenheiten für ${monat} ${jahr} gefunden.`);
+
+        // --- Abwesenheiten in die Datenbank MERGEN ---
+        await db.read();
+        if (!db.data.abwesenheiten) {
+            db.data.abwesenheiten = [];
         }
+        
+        // Entferne alte Einträge für den importierten Monat, um Duplikate zu vermeiden
+        const andereAbwesenheiten = db.data.abwesenheiten.filter(abw => !abw.von.startsWith(`${jahr}-${monat}`));
+        db.data.abwesenheiten = [...andereAbwesenheiten, ...abwesenheiten];
+        
+        await db.write();
+
+        res.status(200).json({ message: `Import erfolgreich! ${abwesenheiten.length} Abwesenheiten für ${monat}/${jahr} importiert.` });
+
+    } catch (error) {
+        console.error('Fehler beim Import der Abwesenheiten:', error);
+        res.status(500).json({ message: `Import fehlgeschlagen: ${error.message}` });
+    }
+});
+
+/**
+ * Diese Funktion "entschlüsselt" den Factorial-Export.
+ */
+function parseFactorialExport(data, mitarbeiterListe) {
+    const abwesenheiten = [];
+    
+    // Finde Jahr und Monat aus dem Titel (z.B. "Zwischen August 1, 2025...")
+    const titelZeile = data[0].join(' ');
+    const yearMatch = titelZeile.match(/(\d{4})/);
+    const monthMatch = titelZeile.match(/Zwischen (\w+)/);
+    if (!yearMatch || !monthMatch) throw new Error("Konnte Jahr und Monat nicht aus dem Dateititel extrahieren.");
+    
+    const jahr = yearMatch[1];
+    const monatsNamen = { "januar": "01", "februar": "02", "märz": "03", "april": "04", "mai": "05", "juni": "06", "juli": "07", "august": "08", "september": "09", "oktober": "10", "november": "11", "dezember": "12" };
+    const monat = monatsNamen[monthMatch[1].toLowerCase()];
+    if (!monat) throw new Error(`Unbekannter Monatsname: ${monthMatch[1]}`);
+
+    // Finde die Zeile mit den Datums-Headern (z.B. "Fr 1", "Sa 2")
+    const headerRowIndex = data.findIndex(row => row[1] === 'Fr 1' || row[1] === 'Sa 1' || row[1] === 'So 1'); // Finde den ersten Tag
+    if (headerRowIndex === -1) throw new Error("Datums-Header-Zeile nicht gefunden.");
+    
+    const dateHeaders = data[headerRowIndex];
+    const dataRows = data.slice(headerRowIndex + 1);
+
+    for (const row of dataRows) {
+        const fullName = row[0];
+        if (!fullName) continue;
+
+        const mitarbeiter = mitarbeiterListe.find(m => `${m.vorname} ${m.nachname}` === fullName);
+        if (!mitarbeiter) {
+            console.warn(`Mitarbeiter "${fullName}" aus Excel nicht in der Datenbank gefunden. Wird übersprungen.`);
+            continue;
+        }
+
+        for (let i = 1; i < dateHeaders.length; i++) {
+            const cellValue = row[i];
+            if (cellValue && isNaN(cellValue) && !cellValue.includes(':')) { // Prüft, ob es Text ohne Uhrzeit ist
+                const day = dateHeaders[i].split(' ')[1];
+                const isoDate = `${jahr}-${monat}-${String(day).padStart(2, '0')}`;
+                
+                let typ = 'SONSTIGES_FREI';
+                if (cellValue.toLowerCase().includes('urlaub')) typ = 'URLAUB';
+                if (cellValue.toLowerCase().includes('elternzeit')) typ = 'ELTERNZEIT';
+
+                abwesenheiten.push({
+                    id: `imp_${mitarbeiter.id}_${isoDate}`,
+                    mitarbeiterId: mitarbeiter.id,
+                    von: isoDate,
+                    bis: isoDate,
+                    typ: typ,
+                    notiz: `Importiert aus Factorial: ${cellValue}`
+                });
+            }
+        }
+    }
+    
+    // Optional: Hier könnte man noch Logik einbauen, um aufeinanderfolgende Tage zu einem einzigen Eintrag zusammenzufassen.
+    return { abwesenheiten, monat, jahr };
+}
+
+
+async function loadWishes() {
+    const WUNSCH_PATH = path.join(__dirname, 'data', 'wuensche.json');
+    try {
+        if (!fs.existsSync(WUNSCH_PATH)) return [];
         const data = await fs.promises.readFile(WUNSCH_PATH, 'utf8');
         return JSON.parse(data);
-    } catch (err) {
-        console.error("Fehler beim Laden der Wunschschichten:", err);
-        return [];
-    }
+    } catch (err) { return []; }
+}
+
+async function loadPreflights() {
+    const PREFLIGHT_PATH = path.join(__dirname, 'data', 'preflight.json');
+    try {
+        if (!fs.existsSync(PREFLIGHT_PATH)) return [];
+        const data = await fs.promises.readFile(PREFLIGHT_PATH, 'utf8');
+        return JSON.parse(data);
+    } catch (err) { return []; }
 }
 
 async function saveWishes(data) {
@@ -194,26 +291,6 @@ async function parseCSV(filePath) {
             .on('error', (error) => reject(error));
     });
 }
-/*
-app.get('/api/schichtplan', async (req, res) => {
-    // Lese alle Pläne aus der Datenbank
-    const allPlans = db.data.plans;
-
-    // Fasse die Daten aus allen Plänen zusammen (vereinfachtes Beispiel)
-    const combinedMitarbeiterDaten = []; // Hier müsstest du die Daten aller Pläne mergen
-    // Fürs Erste geben wir nur den letzten Plan zurück, um die Logik zu zeigen
-    const lastPlan = allPlans[allPlans.length - 1]; 
-
-    if (lastPlan) {
-        // Deine `transformDataForFullCalendar` Logik bleibt dieselbe
-        res.json(transformDataForFullCalendar(lastPlan.mitarbeiterDaten));
-    } else {
-        res.json({ events: [], resources: [] });
-    }
-});
-*/
-// in server.js
-
 app.get('/api/schichtplan', async (req, res) => {
     try {
         await db.read(); // Lese den aktuellen Stand der Datenbank
@@ -255,27 +332,79 @@ app.get('/api/schichtplan', async (req, res) => {
     }
 });
 
-// Routen zu Links erstellen
-app.get('/prompt', async (req, res) => {
-  try {
-    const data = await fsPromises.readFile(PROMPT_PATH, 'utf8');
-    res.json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Fehler beim Lesen der Prompt-Datei.');
-  }
+
+app.get('/api/abwesenheiten', async (req, res) => {
+    try {
+        await db.read(); // Lese den aktuellen Stand der db.json
+        const abwesenheiten = db.data.abwesenheiten || [];
+        res.status(200).json(abwesenheiten);
+    } catch (error) {
+        console.error('Fehler beim Laden der Abwesenheiten:', error);
+        res.status(500).json({ message: 'Server-Fehler beim Laden der Abwesenheiten.' });
+    }
 });
 
-// Neu: Endpunkt für settings.json
-app.get('/settings', async (req, res) => {
-  try {
-    const data = await fsPromises.readFile(SETTINGS_PATH, 'utf8');
-    res.json(JSON.parse(data));
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Fehler beim Lesen der Settings-Datei.');
-  }
+// POST /api/abwesenheiten
+// Erstellt eine neue Abwesenheit und speichert sie in der Datenbank.
+app.post('/api/abwesenheiten', async (req, res) => {
+    const { mitarbeiterId, von, bis, typ, notiz } = req.body;
+
+    // Einfache Validierung
+    if (!mitarbeiterId || !von || !bis || !typ) {
+        return res.status(400).json({ message: 'Fehlende Daten. Mitarbeiter, Typ, Start- und Enddatum sind erforderlich.' });
+    }
+
+    try {
+        await db.read();
+        
+        // Initialisiere das Array, falls es nicht existiert
+        if (!db.data.abwesenheiten) {
+            db.data.abwesenheiten = [];
+        }
+
+        const neueAbwesenheit = {
+            id: `abw_${Date.now()}`, // Eindeutige ID generieren
+            mitarbeiterId,
+            von,
+            bis,
+            typ,
+            notiz: notiz || ''
+        };
+
+        db.data.abwesenheiten.push(neueAbwesenheit);
+        await db.write(); // Speichere die Änderungen
+
+        res.status(201).json(neueAbwesenheit); // Sende die erstellte Abwesenheit zurück
+    } catch (error) {
+        console.error('Fehler beim Speichern der Abwesenheit:', error);
+        res.status(500).json({ message: 'Server-Fehler beim Speichern der Abwesenheit.' });
+    }
 });
+
+// DELETE /api/abwesenheiten/:id
+// Löscht eine spezifische Abwesenheit aus der Datenbank.
+app.delete('/api/abwesenheiten/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await db.read();
+
+        const anzahlVorher = db.data.abwesenheiten?.length || 0;
+        // Filtere das Array, um den Eintrag mit der passenden ID zu entfernen
+        db.data.abwesenheiten = db.data.abwesenheiten?.filter(abw => abw.id !== id) || [];
+        
+        if (db.data.abwesenheiten.length === anzahlVorher) {
+            return res.status(404).json({ message: 'Abwesenheit mit dieser ID nicht gefunden.' });
+        }
+
+        await db.write();
+        res.status(200).json({ message: 'Abwesenheit erfolgreich gelöscht.' });
+    } catch (error) {
+        console.error('Fehler beim Löschen der Abwesenheit:', error);
+        res.status(500).json({ message: 'Server-Fehler beim Löschen der Abwesenheit.' });
+    }
+});
+
 
 app.get('/api/mitarbeiter-daten', (req, res) => {
     try{
@@ -285,75 +414,6 @@ app.get('/api/mitarbeiter-daten', (req, res) => {
     }
 });
 
-app.get('/mitarbeiter-daten', (req, res) => {
-    try{
-        res.json(loadEmployees());
-    } catch(error){
-        res.status(500).json({error: "Fehler beim Laden der Mitarbeiterdaten"})
-    }
-});
-
-/*
-app.get('/api/schichtplan', async (req, res) => {
-    try {
-        const outputCsvPath = path.join(__dirname, 'java', 'optaplanner', 'results', 'output.csv');
-        
-        // Prüfen, ob die Datei existiert
-        if (!fs.existsSync(outputCsvPath)) {
-            console.error(`[API] Plandatei nicht gefunden unter: ${outputCsvPath}`);
-            return res.status(404).json({ message: 'Keine Plandatei (output.csv) gefunden.' });
-        }
-        
-        // Die parseCSV-Funktion aufrufen
-        const csvDaten = await parseCSV(outputCsvPath);
-        
-        // Die Daten als JSON an React zurücksenden
-        res.json(csvDaten);
-
-    } catch (error) {
-        console.error('Fehler in der /api/schichtplan Route:', error);
-        res.status(500).json({ error: 'Fehler beim Laden der Plandaten.' });
-    }
-});
-*/
-
-app.get('/schichtplan', async (req, res) => {
-    try {
-        const csvDaten = await parseCSV(CALENDAR_CSV_PATH);
-        console.log("CSV-Daten erfolgreich geladen:", csvDaten);
-        console.log("Mitarbeiter Daten:", csvDaten.mitarbeiterDaten);
-        console.log("Datumsdaten:", csvDaten.dates);
-        res.render('schichtplan', {
-            title: 'Mitarbeiter Schichtplan',
-            dates: csvDaten.dates,
-            mitarbeiterDaten: csvDaten.mitarbeiterDaten
-        });
-    } catch (error) {
-        console.error('Fehler beim Lesen der CSV-Datei:', error);
-        res.status(500).send('Fehler beim Anzeigen der Mitarbeiter Schichtplandaten.');
-    }
-});
-
-
-
-app.get('/bearbeiten', async (req, res) => {
-    try {
-        const outputCsvPath = path.join(__dirname,'java','optaplanner', 'results', 'output.csv');
-        const csvDaten = await parseCSV(outputCsvPath);
-
-        res.render('bearbeiten', {
-            title: 'Mitarbeiter Schichtplan bearbeiten',
-            dates: csvDaten.dates,
-            datesISO: csvDaten.datesISO,
-            mitarbeiterDaten: csvDaten.mitarbeiterDaten
-        });
-    } catch (error) {
-        console.error('Fehler beim Laden der CSV-Daten für die Bearbeitungsseite:', error);
-        res.status(500).send('Fehler beim Laden der Plandaten.');
-    }
-});
-
-// Hilfsfunktion, um die Datenaufbereitung zu kapseln
 async function parseCSVAndCreateDates(filePath) {
     const csvDaten = await parseCSV(filePath); // Deine bestehende Funktion
     const dates = csvDaten.dates; // Annahme: ['30.06.', ...]
@@ -366,13 +426,6 @@ async function parseCSVAndCreateDates(filePath) {
 
     return { mitarbeiterDaten: csvDaten.mitarbeiterDaten, dates, datesISO };
 }
-
-app.get('/richtlinien', (req, res) => {
-    fs.readFile(RULES_PATH, 'utf-8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Regeln.' });
-        res.json(JSON.parse(data));
-    });
-});
 
 app.get("/api/planungs-ergebnis/:problemId", async (req, res) => {
     const { problemId } = req.params;
@@ -394,33 +447,6 @@ app.get("/api/planungs-ergebnis/:problemId", async (req, res) => {
     }
 });
 
-app.get('/planungs-ergebnis/:problemId', async (req, res) => {
-    const problemId = req.params.problemId;
-    try {
-        console.log(`[NODE.JS PROXY] Empfange Anfrage für /planungs-ergebnis/${problemId}.`);
-        const javaBackendResponse = await fetch(`http://localhost:8080/api/planungs-ergebnis/${problemId}`); // Stelle sicher, dass die URL korrekt ist
-
-        // Den Status und den Body des Java-Backends direkt an das Frontend weiterleiten
-        // Hier sollte Java JSON zurückgeben (entweder 200 OK mit Lösung oder 202 Accepted mit null Body)
-        if (javaBackendResponse.status === 202) {
-            console.log(`[NODE.JS PROXY] Java-Backend antwortet 202 für ${problemId} (noch in Arbeit).`);
-            // Leite den Status UND die JSON-Daten vom Java-Backend weiter
-            res.status(202).json(javaBackendResponse.data); 
-        } else if (javaBackendResponse.status === 200) {
-            console.log(`[NODE.JS PROXY] Java-Backend antwortet 200 OK für ${problemId} (Lösung gefunden).`);
-            // Leite den Status UND die JSON-Daten vom Java-Backend weiter
-            res.status(200).json(javaBackendResponse.data);
-        } else {
-            // Für 404 Not Found oder andere Fehler
-            const errorBody = await javaBackendResponse.text();
-            console.error(`[NODE.JS PROXY] Java-Backend antwortet ${javaBackendResponse.status} für ${problemId}: ${errorBody}`);
-            res.status(javaBackendResponse.status).send(errorBody); // Leite den Fehler weiter
-        }
-    } catch (error) {
-        console.error(`[NODE.JS PROXY] Interner Serverfehler im /planungs-ergebnis/${problemId} Endpunkt:`, error);
-        res.status(500).json({ error: 'Interner Serverfehler beim Abrufen des Planungsergebnisses.' });
-    }
-});
 
 app.delete('/api/schicht/:eventId', async (req, res) => {
     const { eventId } = req.params;
@@ -443,38 +469,40 @@ app.delete('/api/schicht/:eventId', async (req, res) => {
     }
 });
 
-app.delete('/mitarbeiter/:id', (req, res) => {
-    try{
-        const employees = loadEmployees();
-        const filtered = employees.filter(e => e.id !== req.params.id);
-        if (filtered.length === employees.length) return res.status(404).json({ error: 'Nicht gefunden' });
-        saveEmployees(filtered);
-        res.json({ success: true });
-    } catch(error){
-        res.status(500).json({error: "Fehler beim Löschen des Mitarbeiters"})
+app.delete('/api/schichtplan', async (req, res) => {
+    const { von, bis } = req.query; // z.B. ?von=2025-08-04&bis=2025-08-10
+
+    if (!von || !bis) {
+        return res.status(400).json({ message: 'Start- und Enddatum sind erforderlich.' });
     }
-});
+    
+    console.log(`[API] Lösche Pläne im Zeitraum: ${von} bis ${bis}`);
 
-app.delete('/richtlinie/:id', (req, res) => {
-    const ruleId = req.params.id;
+    try {
+        await db.read();
 
-    fs.readFile(RULES_PATH, 'utf-8', async (err, data) => {
-        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Datei.' });
+        db.data.plans.forEach(plan => {
+            if (plan.mitarbeiterList) {
+                plan.mitarbeiterList.forEach(mitarbeiter => {
+                    if (mitarbeiter.Arbeitszeiten) {
+                        for (const isoDate in mitarbeiter.Arbeitszeiten) {
+                            // Der String-Vergleich funktioniert hier zuverlässig für das ISO-Format
+                            if (isoDate >= von && isoDate <= bis) {
+                                delete mitarbeiter.Arbeitszeiten[isoDate];
+                            }
+                        }
+                    }
+                });
+            }
+        });
 
-        let rules = JSON.parse(data);
-        const updatedRules = rules.filter(rule => rule.id !== ruleId);
+        await db.write();
+        res.status(200).json({ message: `Alle Schichten vom ${von} bis ${bis} wurden gelöscht.` });
 
-        if (rules.length === updatedRules.length) {
-            return res.status(404).json({ error: 'Regel nicht gefunden.' });
-        }
-
-        try {
-            await fsPromises.writeFile(RULES_PATH, JSON.stringify(updatedRules, null, 2), 'utf-8');
-            res.json({ success: true });
-        } catch (err) {
-            return res.status(500).json({ error: 'Fehler beim Speichern der Datei.' });
-        }
-    });
+    } catch (error) {
+        console.error('Fehler beim Löschen der Plandaten:', error);
+        res.status(500).json({ message: 'Server-Fehler beim Löschen.' });
+    }
 });
 
 app.get('/api/wuensche/:userId', async (req, res) => {
@@ -488,7 +516,6 @@ app.get('/api/wuensche/:userId', async (req, res) => {
     }
 });
 
-// Speichert/Überschreibt alle Wünsche für einen bestimmten Mitarbeiter
 app.put('/api/wuensche/:userId', async (req, res) => {
     const { userId } = req.params;
     const newWishesForUser = req.body; // Erwartet ein Array von Wunsch-Objekten
@@ -543,17 +570,93 @@ app.put('/api/schicht/:eventId', async (req, res) => {
     }
 });
 
+// =======================================================================
+//   PREFLIGHT API-ENDPUNKTE (NEU)
+// =======================================================================
 
-app.put('/mitarbeiter/:id', (req, res) => {
-    try{
-        const employees = loadEmployees();
-        const index = employees.findIndex(e => e.id === req.params.id);
-        if (index === -1) return res.status(404).json({ error: 'Nicht gefunden' });
-        employees[index] = { id: req.params.id, ...req.body };
-        saveEmployees(employees);
-        res.json({ success: true });
-    } catch(error){
-        res.status(500).json({error: "Fehler beim Aktualisieren des Mitarbeiters"})
+/**
+ * GET /api/preflight/:employeeId/:month
+ * Holt ein spezifisches PreFlight-Muster für einen Mitarbeiter und Monat.
+ * Nutzt deine bestehende `loadWishes`-Funktion.
+ */
+app.get('/api/preflight/:employeeId/:month', async (req, res) => {
+    const { employeeId, month } = req.params;
+    console.log(`[API] Suche PreFlight-Wunsch für MA ${employeeId} im Monat ${month}`);
+
+    try {
+        const allWishes = await loadWishes(); // Deine Helfer-Funktion!
+
+        // Finde den passenden PREFLIGHT-Wunsch in der Liste
+        const preflightWunsch = allWishes.find(w =>
+            w.mitarbeiterId === employeeId &&
+            w.typ === 'PREFLIGHT' &&
+            w.datum && w.datum.startsWith(month) // Vergleicht "2025-08-01" mit "2025-08"
+        );
+
+        if (preflightWunsch) {
+            console.log(`[API] PreFlight-Wunsch gefunden.`);
+            // Das Frontend erwartet das 'details'-Objekt, also senden wir es direkt
+            res.json({ details: preflightWunsch.details || {} });
+        } else {
+            console.log(`[API] Keinen passenden PreFlight-Wunsch gefunden.`);
+            res.status(404).json({ details: {} }); // Sende leeres Objekt, wenn nichts gefunden wird
+        }
+    } catch (error) {
+        console.error('[API PREFLIGHT GET] Fehler:', error);
+        res.status(500).json({ message: 'Server-Fehler beim Laden der Wünsche.' });
+    }
+});
+
+/**
+ * POST /api/preflight
+ * Speichert oder aktualisiert ein PreFlight-Muster.
+ * Nutzt deine `loadWishes` und `saveWishes`-Funktionen.
+ */
+app.post('/api/preflight', async (req, res) => {
+    const newWish = req.body;
+    console.log(`[API] Speichere PreFlight-Wunsch für MA: ${newWish.mitarbeiterId}`);
+
+    // Validierung der ankommenden Daten
+    if (!newWish.mitarbeiterId || !newWish.datum || newWish.typ !== 'PREFLIGHT' || !newWish.details) {
+        return res.status(400).json({ message: 'Ungültige Daten für PreFlight-Wunsch.' });
+    }
+
+    try {
+        let allWishes = await loadWishes(); // Deine Helfer-Funktion!
+
+        const month = newWish.datum.slice(0, 7); // z.B. "2025-08"
+
+        // Prüfen, ob schon ein PreFlight-Wunsch für diesen MA/Monat existiert
+        const existingWishIndex = allWishes.findIndex(w =>
+            w.mitarbeiterId === newWish.mitarbeiterId &&
+            w.typ === 'PREFLIGHT' &&
+            w.datum && w.datum.startsWith(month)
+        );
+
+        if (Object.keys(newWish.details).length === 0) {
+            // Wenn der Nutzer alle Wünsche gelöscht hat, entfernen wir den Eintrag
+            if (existingWishIndex !== -1) {
+                console.log('[API] Leeres Muster empfangen, lösche bestehenden Wunsch.');
+                allWishes.splice(existingWishIndex, 1);
+            }
+        } else {
+            // Ansonsten: Aktualisieren oder Hinzufügen
+            if (existingWishIndex !== -1) {
+                console.log('[API] Aktualisiere bestehenden PreFlight-Wunsch.');
+                allWishes[existingWishIndex] = newWish;
+            } else {
+                console.log('[API] Füge neuen PreFlight-Wunsch hinzu.');
+                allWishes.push(newWish);
+            }
+        }
+
+        await saveWishes(allWishes); // Deine Helfer-Funktion!
+        
+        res.status(200).json({ message: 'PreFlight-Muster erfolgreich gespeichert.' });
+
+    } catch (error) {
+        console.error('[API PREFLIGHT POST] Fehler:', error);
+        res.status(500).json({ message: 'Server-Fehler beim Speichern des Wunsches.' });
     }
 });
 
@@ -614,70 +717,8 @@ app.post('/api/plan', async (req, res) => {
     }
 });
 
-// Neuer Endpunkt für den CSV-Upload
-app.post('/upload', upload.single('csvFile'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).send('Keine Datei hochgeladen.');
-    }
-
-    const filePath = path.join(UPLOADS_PATH, req.file.originalname);
-
-    try {
-        const parsedData = await parseCSV(filePath);
-        console.log('CSV-Daten erfolgreich geladen:', parsedData);
-        res.json(parsedData);
-    } catch (error) {
-        console.error('Fehler beim Parsen der CSV-Datei:', error);
-        res.status(500).send('Fehler beim Verarbeiten der CSV-Datei.');
-    } finally {
-        try {
-            await fsPromises.unlink(filePath);
-            console.log('Datei gelöscht:', filePath);
-        } catch (unlinkErr) {
-                console.error("Fehler beim Löschen der Datei:", unlinkErr);
-            }
-        }
-    });
-
-app.post('/mitarbeiter', (req, res) => {
-    try{
-        const employees = loadEmployees();
-        const newEmployee = {
-            id: Date.now().toString(),
-            ...req.body
-        };
-        employees.push(newEmployee);
-        saveEmployees(employees);
-        res.json({ success: true });
-    } catch(error){
-        res.status(500).json({error: "Fehler beim Erstellen des Mitarbeiters"})
-    }
-});
 
 app.post('/api/save-schichtplan-csv', async (req, res) => {
-    const solution = req.body; // Die gesamte SchichtPlan-Lösung wird im Body erwartet
-
-    if (!solution) {
-        console.error("[NODE.JS PROXY] Fehler: Keine Lösung im Request Body für CSV-Speicherung erhalten.");
-        return res.status(400).json({ error: "Keine Schichtplan-Lösung zum Speichern erhalten." });
-    }
-
-    try {
-        // Die generateSchichtplanCSV-Funktion muss auch in dieser server.js-Datei definiert sein.
-        // Siehe die vollständige server.js-Datei, die ich in früheren Antworten gesendet habe.
-        const csvString = generateSchichtplanCSV(solution); 
-
-        // Schreibe die CSV-Daten in die Datei
-        await fsPromises.writeFile(CALENDAR_CSV_PATH, csvString, 'utf8');
-        console.log(`[NODE.JS PROXY] Schichtplan-Lösung erfolgreich als CSV gespeichert unter: ${CALENDAR_CSV_PATH}`);
-        res.status(200).json({ message: "Schichtplan erfolgreich als CSV gespeichert." });
-    } catch (error) {
-        console.error("[NODE.JS PROXY] Fehler beim Speichern der Schichtplan-Lösung als CSV:", error);
-        res.status(500).json({ error: `Fehler beim Speichern der CSV: ${error.message}` });
-    }
-});
-
-app.post('/save-schichtplan-csv', async (req, res) => {
     const solution = req.body; // Die gesamte SchichtPlan-Lösung wird im Body erwartet
 
     if (!solution) {
@@ -852,148 +893,45 @@ function generateSchichtplanCSV(solution) {
     return csvContent;
 }
 
-app.post('/richtlinie', (req, res) => {
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ error: 'Text fehlt.' });
-
-    fs.readFile(RULES_PATH, 'utf-8', async (err, data) => {
-        if (err) return res.status(500).json({ error: 'Fehler beim Lesen der Datei.' });
-
-        const rules = JSON.parse(data);
-        const newRule = {
-            id: Date.now().toString(),
-            text
-        };
-
-        rules.push(newRule);
-        try {
-            await fsPromises.writeFile(RULES_PATH, JSON.stringify(rules, null, 2), 'utf-8');
-            res.json({ success: true });
-        } catch (err) {
-            return res.status(500).json({ error: 'Fehler beim Schreiben.' });
-        }
-    });
-});
 
 app.post("/api/starte-scheduler", async (req, res) => {
-    const { von, bis, ressort, mitarbeiterList } = req.body;
-    const alleWuensche = await loadWishes();
+    const { von, bis, mitarbeiterList } = req.body;
+
     console.log("[NODE.JS PROXY] Empfange Anfrage für /starte-scheduler.");
-    console.log("[NODE.JS PROXY] Empfangene Daten (von, bis, ressort):", von, bis, ressort);
+    console.log("[NODE.JS PROXY] Empfangene Daten (von, bis):", von, bis);
     console.log("[NODE.JS PROXY] Anzahl Mitarbeiter:", mitarbeiterList ? mitarbeiterList.length : 0);
 
-    try {
-        const planungsDaten = {
-            von: von,
-            bis: bis,
-            ressort: ressort,
-            mitarbeiterList: mitarbeiterList.map(mitarbeiter => ({
-                id: mitarbeiter.id,
-                nachname: mitarbeiter.nachname,
-                vorname: mitarbeiter.vorname,
-                email: mitarbeiter.email ?? null,
-                stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null,
-                ressort: mitarbeiter.ressort,
-                wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0,
-                cvd: mitarbeiter.cvd ?? false,
-                notizen: mitarbeiter.notizen ?? null,
-                rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [],
-                teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [],
-                wunschschichten: mitarbeiter.wunschschichten ?? [],
-                urlaubtageSet: mitarbeiter.urlaubtageSet ?? []
-            })),
-            wuensche: alleWuensche
-        };
-        // URL zum Java-Backend: /api/solve (POST)
-        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/solve)...");
-
-        const javaBackendResponse = await axios.post('http://localhost:8080/api/solve', planungsDaten);
-
-        const { problemId, solverTimeoutMillis, message } = javaBackendResponse.data;
-
-        if (!problemId) {
-            console.error('[NODE.JS PROXY] FEHLER: Keine problemId im JSON-Objekt vom Java-Backend erhalten.');
-            return res.status(500).json({ error: 'Konnte problemId vom Java-Backend nicht extrahieren.' });
-        }
-        console.log('[NODE.JS PROXY] Extrahierte Problem-ID:', problemId);
-        console.log('[NODE.JS PROXY] Extrahierter Solver Timeout (ms):', solverTimeoutMillis);
-
-        res.status(202).json({
-            message: message || "Planung erfolgreich gestartet.",
-            problemId: problemId,
-            solverTimeoutMillis: solverTimeoutMillis
-        });
-
-    } catch (error) {
-        console.error("[NODE.JS PROXY] Fehler beim Starten der OptaPlanner-Planung:", error.message);
-        if (axios.isAxiosError(error) && error.response) {
-            console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
-            console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
-            res.status(error.response.status).json({
-                error: `Fehler beim Starten der OptaPlanner-Planung: ${error.response.status} - ${JSON.stringify(error.response.data) || error.message}`
-            });
-        } else {
-            res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
-        }
+    // Sicherheitsabfrage: Stelle sicher, dass die Mitarbeiterliste ein Array ist.
+    if (!Array.isArray(mitarbeiterList)) {
+        const errorMsg = "Fehler: Die Mitarbeiterliste wurde nicht korrekt übermittelt.";
+        console.error(`[NODE.JS PROXY] ${errorMsg}`);
+        return res.status(400).json({ error: errorMsg });
     }
-});
-
-app.post("/starte-scheduler", async (req, res) => {
-    const { von, bis, ressort, mitarbeiterList } = req.body;
-
-    console.log("[NODE.JS PROXY] Empfange Anfrage für /starte-scheduler.");
-    console.log("[NODE.JS PROXY] Empfangene Daten (von, bis, ressort):", von, bis, ressort);
-    console.log("[NODE.JS PROXY] Anzahl Mitarbeiter:", mitarbeiterList ? mitarbeiterList.length : 0);
 
     try {
-        const planungsDaten = {
-            von: von,
-            bis: bis,
-            ressort: ressort,
-            mitarbeiterList: mitarbeiterList.map(mitarbeiter => ({
-                id: mitarbeiter.id,
-                nachname: mitarbeiter.nachname,
-                vorname: mitarbeiter.vorname,
-                email: mitarbeiter.email ?? null,
-                stellenbezeichnung: mitarbeiter.stellenbezeichnung ?? null,
-                ressort: mitarbeiter.ressort,
-                wochenstunden: mitarbeiter.wochenstunden != null ? parseInt(mitarbeiter.wochenstunden, 10) : 0,
-                cvd: mitarbeiter.cvd ?? false,
-                notizen: mitarbeiter.notizen ?? null,
-                rollenUndQualifikationen: mitarbeiter.rollenUndQualifikationen ?? [],
-                teamsUndZugehoerigkeiten: mitarbeiter.teamsUndZugehoerigkeiten ?? [],
-                wunschschichten: mitarbeiter.wunschschichten ?? [],
-                urlaubtageSet: mitarbeiter.urlaubtageSet ?? []
-            }))
+        const alleWuensche = await loadWishes();
+        const allePreflights = await loadPreflights();
+        await db.read();
+        const alleAbwesenheiten = db.data.abwesenheiten || [];
+        
+        const planungsDaten = { 
+            von, 
+            bis, 
+            mitarbeiterList, 
+            wuensche: alleWuensche, 
+            abwesenheiten: alleAbwesenheiten, // NEU
+            preflights: allePreflights // NEU
         };
-        // URL zum Java-Backend: /api/solve (POST)
-        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend (http://localhost:8080/api/solve)...");
 
+        console.log("[NODE.JS PROXY] Sende Planungsdaten an Java-Backend...");
         const javaBackendResponse = await axios.post('http://localhost:8080/api/solve', planungsDaten);
 
-        const { problemId, solverTimeoutMillis, message } = javaBackendResponse.data;
-
-        if (!problemId) {
-            console.error('[NODE.JS PROXY] FEHLER: Keine problemId im JSON-Objekt vom Java-Backend erhalten.');
-            return res.status(500).json({ error: 'Konnte problemId vom Java-Backend nicht extrahieren.' });
-        }
-        console.log('[NODE.JS PROXY] Extrahierte Problem-ID:', problemId);
-        console.log('[NODE.JS PROXY] Extrahierter Solver Timeout (ms):', solverTimeoutMillis);
-
-        res.status(202).json({
-            message: message || "Planung erfolgreich gestartet.",
-            problemId: problemId,
-            solverTimeoutMillis: solverTimeoutMillis
-        });
+        res.status(202).json(javaBackendResponse.data);
 
     } catch (error) {
         console.error("[NODE.JS PROXY] Fehler beim Starten der OptaPlanner-Planung:", error.message);
         if (axios.isAxiosError(error) && error.response) {
-            console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
-            console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
-            res.status(error.response.status).json({
-                error: `Fehler beim Starten der OptaPlanner-Planung: ${error.response.status} - ${JSON.stringify(error.response.data) || error.message}`
-            });
+            res.status(error.response.status).json({ error: `Java-Backend-Fehler: ${JSON.stringify(error.response.data)}` });
         } else {
             res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
         }
@@ -1031,37 +969,85 @@ app.put('/api/mitarbeiter/:id', async (req, res) => {
     }
 });
 
-// Endpunkt zum Abrufen des Planungsstatus oder Ergebnisses
-// Dies ist der Endpunkt, den das Frontend aufruft, um den Fortschritt/Ergebnis zu erhalten
-app.get("/planungs-ergebnis/:problemId", async (req, res) => { // <--- Dieser Endpunkt ist entscheidend!
-    const problemId = req.params.problemId;
-    // HIER KORRIGIERTER LOG, um die korrekte empfangene URL anzuzeigen
-    console.log(`[NODE.JS PROXY] Empfange Anfrage für /planungs-ergebnis/${problemId}.`);
 
-    try {
-        // Interne Weiterleitung an das Java-Backend: /api/planungs-ergebnis/{problemId} (GET)
-        const javaBackendResponse = await axios.get(`http://localhost:8080/api/planungs-ergebnis/${problemId}`);
-        res.status(javaBackendResponse.status).json(javaBackendResponse.data);
-    } catch (error) {
-        console.error(`[NODE.JS PROXY] Fehler beim Abrufen des Planungsergebnisses für ID ${problemId}:`, error.message);
-        if (axios.isAxiosError(error) && error.response) {
-            console.error("Axios Response Data (Java-Backend Fehler):", error.response.data);
-            console.error("Axios Response Status (Java-Backend Fehler):", error.response.status);
-            res.status(error.response.status).json({
-                error: `Fehler beim Abrufen des Planungsergebnisses: ${error.response.status} - ${JSON.stringify(error.response.data) || error.message}`
+function generateCsvFromPlans(plans, month) {
+    if (!plans || plans.length === 0) return "";
+
+    const mitarbeiterMap = new Map();
+    const allDatesInMonth = new Set();
+
+    // 1. Sammle alle Mitarbeiter und ihre Schichten für den gewählten Monat
+    plans.forEach(plan => {
+        if (Array.isArray(plan.mitarbeiterList)) {
+            plan.mitarbeiterList.forEach(mitarbeiter => {
+                const existingMitarbeiter = mitarbeiterMap.get(mitarbeiter.id) || { ...mitarbeiter, Arbeitszeiten: {} };
+                
+                if (mitarbeiter.Arbeitszeiten) {
+                    for (const [isoDate, zeiten] of Object.entries(mitarbeiter.Arbeitszeiten)) {
+                        if (isoDate.startsWith(month)) { // Filter nach Monat
+                            existingMitarbeiter.Arbeitszeiten[isoDate] = zeiten;
+                            allDatesInMonth.add(isoDate);
+                        }
+                    }
+                }
+                mitarbeiterMap.set(mitarbeiter.id, existingMitarbeiter);
             });
-        } else {
-            res.status(500).json({ error: "Ein unerwarteter Fehler ist aufgetreten: " + error.message });
         }
+    });
+
+    const sortedDates = Array.from(allDatesInMonth).sort();
+
+    // 2. Erstelle den CSV-Header
+    let csvHeaders = ["NutzerID", "Nachname", "Vorname", "Ressort"];
+    sortedDates.forEach(date => {
+        const [y, m, d] = date.split('-');
+        csvHeaders.push(`${d}.${m}. Von`);
+        csvHeaders.push(`${d}.${m}. Bis`);
+    });
+    let csvContent = csvHeaders.join(";") + "\n";
+
+    // 3. Erstelle die Zeilen für jeden Mitarbeiter
+    for (const mitarbeiter of mitarbeiterMap.values()) {
+        let row = [
+            `"${mitarbeiter.id || ''}"`,
+            `"${mitarbeiter.nachname || ''}"`,
+            `"${mitarbeiter.vorname || ''}"`,
+            `"${mitarbeiter.ressort || ''}"`
+        ];
+        
+        sortedDates.forEach(date => {
+            const schicht = mitarbeiter.Arbeitszeiten[date];
+            if (schicht && schicht.Von) {
+                row.push(`"${schicht.Von}"`);
+                row.push(`"${schicht.Bis}"`);
+            } else {
+                row.push('""');
+                row.push('""');
+            }
+        });
+        csvContent += row.join(";") + "\n";
+    }
+
+    return csvContent;
+}
+
+app.get('/api/export-csv', async (req, res) => {
+    const { month } = req.query;
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).send('Bitte gib einen Monat im Format YYYY-MM an.');
+    }
+    try {
+        await db.read();
+        const csvData = generateCsvFromPlans(db.data.plans, month);
+        const fileName = `schichtplan_${month}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.status(200).send('\uFEFF' + csvData); // BOM für Excel-Kompatibilität
+    } catch (error) {
+        console.error("Fehler beim CSV-Export:", error);
+        res.status(500).send("Fehler beim Erstellen der CSV-Datei.");
     }
 });
-
-// Die restlichen Routen und Funktionen bleiben unverändert
-app.get('/', (req, res) => res.render('index'));
-app.get('/erstellen', (req, res) => res.render('erstellen'));
-app.get('/bearbeiten', (req, res) => res.render('bearbeiten'));
-app.get('/limitationen', (req, res) => res.render('limitationen'));
-app.get('/mitarbeiter', (req, res) => res.render('mitarbeiter'));
 
 function formatDateISOtoDeutsch(isoDatum) {
     const [jahr, monat, tag] = isoDatum.split('-');
@@ -1134,6 +1120,11 @@ async function createCsvTemplate(von, bis) {
     return { success: false, message: `Fehler beim Erstellen des CSV-Templates: ${error.message}` };
   }
 }
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server läuft auf http://localhost:${PORT}`);

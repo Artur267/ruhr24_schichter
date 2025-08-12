@@ -2,7 +2,7 @@ package com.ruhr24.schichter.domain;
 
 import org.optaplanner.core.api.domain.lookup.PlanningId;
 import org.optaplanner.core.api.domain.variable.InverseRelationShadowVariable;
-import org.optaplanner.core.api.domain.variable.InverseRelationShadowVariable;
+//import org.optaplanner.core.api.domain.variable.InverseRelationShadowVariable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

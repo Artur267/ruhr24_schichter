@@ -1,8 +1,0 @@
-1. Alle Daten einlesen (Regelwerk, Settings, Mitarbeiter, Prompt)
-2. Frontend stellen (alle eingelesenen Daten darstellen)
-3. Serverresponse wenn ich Datum eintrage
-4. Mit allen Daten eine Template csv erstellen (die beiden Header, Mitarbeiterdaten und am ende Die Zeiten die pro Tag geschedulet werden)
-5. Ressorts einlesen um eine Schleife zu starten
-6. Ki über diese Schleife aufrufen: Pro Ressort eine Anfrage die sich auf dieses Ressort spezialisiert in der CSV
-7. CSV Speichern.
-8. Ende Feedback

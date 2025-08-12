@@ -1,0 +1,37 @@
+.cellContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%; /* Wichtig für die vertikale Zentrierung */
+    padding: 4px 8px;
+    box-sizing: border-box;
+}
+
+.name {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.role {
+    opacity: 0.8;
+}
+
+.hours {
+    font-weight: 500;
+    background-color: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 4px;
+}

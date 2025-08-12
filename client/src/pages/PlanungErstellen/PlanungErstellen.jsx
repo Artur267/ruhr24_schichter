@@ -6,6 +6,43 @@ import { Button, TextInput, NumberInput } from '@mantine/core';
 import { IconRocket } from '@tabler/icons-react';
 import { startOfISOWeek, setISOWeek } from 'date-fns';
 
+
+function transformLiveSolutionForDisplay(liveSolution) {
+    if (!liveSolution || !liveSolution.mitarbeiterList || !liveSolution.arbeitsmusterList) {
+        return { mitarbeiterList: [] }; // Leere Daten zurückgeben, wenn die Struktur unerwartet ist
+    }
+
+    // 1. Erstelle eine Map aller Mitarbeiter für schnellen Zugriff
+    const mitarbeiterMap = new Map();
+    liveSolution.mitarbeiterList.forEach(m => {
+        mitarbeiterMap.set(m.id, { ...m, Arbeitszeiten: {} });
+    });
+
+    // 2. Gehe durch alle Arbeitsmuster und verteile die Schichten
+    liveSolution.arbeitsmusterList.forEach(muster => {
+        // Nimm nur die Muster, die bereits einem Mitarbeiter zugewiesen sind
+        if (muster.mitarbeiter && muster.mitarbeiter.id) {
+            const mitarbeiter = mitarbeiterMap.get(muster.mitarbeiter.id);
+            if (mitarbeiter && muster.schichten) {
+                muster.schichten.forEach(schicht => {
+                    // Füge die Schicht zu den Arbeitszeiten des Mitarbeiters hinzu
+                    mitarbeiter.Arbeitszeiten[schicht.datum] = {
+                        Von: schicht.startZeit.substring(0, 5),
+                        Bis: schicht.endZeit.substring(0, 5)
+                    };
+                });
+            }
+        }
+    });
+
+    // 3. Gib die angereicherte Mitarbeiterliste zurück
+    return { 
+        ...liveSolution, // Behalte andere Infos wie den Score bei
+        mitarbeiterList: Array.from(mitarbeiterMap.values()) 
+    };
+}
+
+
 function getMondayFromISOWeek(weekString) {
     if (!weekString) return null;
     const [year, week] = weekString.split('-W').map(Number);
@@ -90,27 +127,38 @@ function PlanungErstellen() {
         const pollSolution = async () => {
             try {
                 const response = await fetch(`/api/planungs-ergebnis/${problemId}`);
-                if (response.status === 200) { 
-                    setIsPolling(false); 
+
+                // WICHTIG: Den Body erst lesen, NACHDEM wir den Status geprüft haben!
+
+                if (response.status === 200) { // Fertig!
+                    const finalSolution = await response.json(); // Lese den Body HIER (1. Mal)
+                    const transformed = transformLiveSolutionForDisplay(finalSolution);
+                    
+                    setLiveSolution(transformed);
+                    setStatusMessage(`Planung abgeschlossen! Score: ${transformed.score?.softScore || 'N/A'}`);
+                    setIsPolling(false);
                     clearInterval(pollingIntervalRef.current);
                     
-                    const finalSolution = await response.json();
-                    setLiveSolution(finalSolution);
-                    
-                    //await saveSchichtplanToCSV(finalSolution);
-                } else if (response.status === 202) { 
-                    const currentSolution = await response.json();
-                    setLiveSolution(currentSolution);
-                    setStatusMessage(`Planung läuft... Score: ${currentSolution.score?.softScore || 'wird berechnet'}`);
-                } else {
-                    throw new Error(`Server-Fehler: ${response.status}`);
+                } else if (response.status === 202) { // Läuft noch...
+                    const intermediateSolution = await response.json(); // ODER HIER (1. Mal)
+                    const transformed = transformLiveSolutionForDisplay(intermediateSolution);
+
+                    setLiveSolution(transformed);
+                    setStatusMessage(`Planung läuft... Score: ${transformed.score?.softScore || 'wird berechnet'}`);
+
+                } else { // Ein Fehler ist aufgetreten
+                    // Im Fehlerfall lesen wir den Body als Text, um eine detailliertere Meldung zu bekommen
+                    const errorText = await response.text();
+                    throw new Error(`Server-Fehler: ${response.status} - ${errorText}`);
                 }
             } catch (error) {
                 console.error("Polling-Fehler:", error);
                 setStatusMessage(`Fehler bei der Verbindung zum Server.`);
                 setIsPolling(false);
+                clearInterval(pollingIntervalRef.current); // Wichtig: auch im Fehlerfall stoppen
             }
         };
+
 
 
         pollingIntervalRef.current = setInterval(pollSolution, 3000); // Alle 3 Sekunden nachfragen

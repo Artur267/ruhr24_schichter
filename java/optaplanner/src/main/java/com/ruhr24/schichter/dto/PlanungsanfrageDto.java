@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.ruhr24.schichter.domain.Abwesenheit; // WICHTIG: Import hinzufügen
 import com.ruhr24.schichter.domain.Mitarbeiter;
 import com.ruhr24.schichter.domain.Wunsch;
 
@@ -18,19 +19,15 @@ public class PlanungsanfrageDto {
 
     private String ressort;
 
-    private List<Mitarbeiter> mitarbeiterList; // Mitarbeiter werden direkt im DTO empfangen
+    private List<Mitarbeiter> mitarbeiterList; 
 
     private List<Wunsch> wuensche;
 
+    // NEU: Feld für die Abwesenheiten hinzufügen
+    private List<Abwesenheit> alleAbwesenheiten;
+
     // Konstruktor (optional, aber hilfreich)
     public PlanungsanfrageDto() {
-    }
-
-    public PlanungsanfrageDto(LocalDate von, LocalDate bis, String ressort, List<Mitarbeiter> mitarbeiterList) {
-        this.von = von;
-        this.bis = bis;
-        this.ressort = ressort;
-        this.mitarbeiterList = mitarbeiterList;
     }
 
     // Getter und Setter
@@ -74,6 +71,15 @@ public class PlanungsanfrageDto {
         this.wuensche = wuensche;
     }
     
+    // NEU: Getter und Setter für die Abwesenheiten
+    public List<Abwesenheit> getAlleAbwesenheiten() {
+        return alleAbwesenheiten;
+    }
+
+    public void setAlleAbwesenheiten(List<Abwesenheit> alleAbwesenheiten) {
+        this.alleAbwesenheiten = alleAbwesenheiten;
+    }
+    
     @Override
     public String toString() {
         return "PlanungsanfrageDto{" +
@@ -81,6 +87,8 @@ public class PlanungsanfrageDto {
                ", bis=" + bis +
                ", ressort='" + ressort + '\'' +
                ", mitarbeiterList=" + (mitarbeiterList != null ? mitarbeiterList.size() : 0) + " Mitarbeiter" +
+               ", wuensche=" + (wuensche != null ? wuensche.size() : 0) + " Wünsche" +
+               ", alleAbwesenheiten=" + (alleAbwesenheiten != null ? alleAbwesenheiten.size() : 0) + " Abwesenheiten" +
                '}';
     }
 }

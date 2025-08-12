@@ -1,7 +1,7 @@
 // src/main/java/com/ruhr24.schichter.domain/Schicht.java
 package com.ruhr24.schichter.domain;
 import com.ruhr24.schichter.solver.MitarbeiterStrengthComparator;
-import com.ruhr24.schichter.solver.SchichtDifficultyComparator;
+//import com.ruhr24.schichter.solver.SchichtDifficultyComparator;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -11,7 +11,7 @@ import java.time.DayOfWeek;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.optaplanner.core.api.domain.entity.PlanningEntity;
+//import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.lookup.PlanningId;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 

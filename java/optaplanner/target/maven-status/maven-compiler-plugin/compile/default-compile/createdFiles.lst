@@ -8,7 +8,6 @@ com/ruhr24/schichter/solver/SchichtDifficultyComparator.class
 com/ruhr24/schichter/domain/SchichtTyp.class
 com/ruhr24/schichter/SchichtplanApplication.class
 com/ruhr24/schichter/domain/Arbeitsmuster.class
-com/ruhr24/schichter/dto/PlanungsanfrageDto.class
 com/ruhr24/schichter/solution/SolutionStore.class
 com/ruhr24/schichter/solver/MitarbeiterStrengthComparator.class
 com/ruhr24/schichter/generator/SchichtGenerator.class

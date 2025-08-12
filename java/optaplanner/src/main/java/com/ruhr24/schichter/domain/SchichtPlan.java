@@ -2,21 +2,21 @@ package com.ruhr24.schichter.domain;
 
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
-import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty; // WICHTIG: Dieser Import
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
 import org.optaplanner.core.api.domain.solution.ProblemFactProperty;
-import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore; // RICHTIG!
+import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore;
 import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
-import org.optaplanner.core.api.domain.lookup.PlanningId; // Für die @PlanningId in SchichtPlan
+import org.optaplanner.core.api.domain.lookup.PlanningId;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.Map;
-//import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
+import java.util.Collections;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,7 +25,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 @PlanningSolution
 public class SchichtPlan {
 
-    @PlanningId // OptaPlanner benötigt eine ID für die Lösung selbst
+    @PlanningId
     private UUID id;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -40,55 +40,68 @@ public class SchichtPlan {
 
     @ProblemFactCollectionProperty
     @ValueRangeProvider(id = "mitarbeiterRange")
-    private List<Mitarbeiter> mitarbeiterList;
+    private List<Mitarbeiter> mitarbeiterList = new ArrayList<>();
 
-    /*
+    // Die Liste der Abwesenheiten. Wird direkt initialisiert, um null zu vermeiden.
+    private List<Abwesenheit> alleAbwesenheiten = new ArrayList<>();
+
     @ProblemFactCollectionProperty
-    private List<Schicht> alleSchichten; // Eine Liste aller einzelnen Schicht-Objekte im Problem
-    */
+    private List<MitarbeiterFreiWunsch> freiWuensche = new ArrayList<>();
 
     @PlanningEntityCollectionProperty
-    private List<Arbeitsmuster> arbeitsmusterList;
+    private List<Arbeitsmuster> arbeitsmusterList = new ArrayList<>();
 
     @PlanningScore
     private HardSoftLongScore score;
 
-    // Map zur Aggregation der tatsächlich geplanten Stunden pro Mitarbeiter
     private Map<Mitarbeiter, Double> tatsaechlichGeplanteStundenProMitarbeiter;
 
-    // Set zur Speicherung der öffentlichen Feiertage im Planungszeitraum
     @ProblemFactCollectionProperty
-    private Set<LocalDate> publicHolidays;
+    private Set<LocalDate> publicHolidays = new HashSet<>();
 
 
-    // 1. Angepasster No-Arg-Konstruktor
+    // No-Arg-Konstruktor für OptaPlanner/JPA
     public SchichtPlan() {
-        this.mitarbeiterList = new ArrayList<>();
-        this.arbeitsmusterList = new ArrayList<>();
-        this.publicHolidays = new HashSet<>();
+        // Alle Listen werden bereits bei ihrer Deklaration initialisiert.
     }
 
-    // 2. Der einzige benötigte Konstruktor für das neue, einfache Modell
+    // KORRIGIERTER Konstruktor, der jetzt auch die Abwesenheiten entgegennimmt
     public SchichtPlan(UUID id, LocalDate von, LocalDate bis, String ressort,
-                       List<Mitarbeiter> mitarbeiterList, List<Arbeitsmuster> arbeitsmusterList, Set<LocalDate> publicHolidays) {
+                       List<Mitarbeiter> mitarbeiterList, List<Arbeitsmuster> arbeitsmusterList,
+                       Set<LocalDate> publicHolidays, List<Abwesenheit> alleAbwesenheiten) {
         this.id = id;
         this.von = von;
         this.bis = bis;
-        this.mitarbeiterList = mitarbeiterList;
-        this.arbeitsmusterList = arbeitsmusterList;
-        this.publicHolidays = publicHolidays;
+        this.ressort = ressort;
+        this.mitarbeiterList = mitarbeiterList != null ? mitarbeiterList : Collections.emptyList();
+        this.arbeitsmusterList = arbeitsmusterList != null ? arbeitsmusterList : Collections.emptyList();
+        this.publicHolidays = publicHolidays != null ? publicHolidays : Collections.emptySet();
+        this.alleAbwesenheiten = alleAbwesenheiten != null ? alleAbwesenheiten : Collections.emptyList();
     }
 
 
     // --- Getter und Setter ---
 
-    public UUID getId() {
-        return id;
+    // Die Annotation auf dem Getter ist korrekt und wird von OptaPlanner erkannt.
+    @ProblemFactCollectionProperty
+    public List<Abwesenheit> getAlleAbwesenheiten() {
+        return alleAbwesenheiten;
     }
 
-    @ProblemFactProperty
-    public LocalDate getEndDatum() {
-        return this.bis;
+    public void setAlleAbwesenheiten(List<Abwesenheit> alleAbwesenheiten) {
+        this.alleAbwesenheiten = alleAbwesenheiten;
+    }
+
+    public List<MitarbeiterFreiWunsch> getFreiWuensche() {
+        return freiWuensche;
+    }
+
+    public void setFreiWuensche(List<MitarbeiterFreiWunsch> freiWuensche) {
+        this.freiWuensche = freiWuensche;
+    }
+
+    public UUID getId() {
+        return id;
     }
     
     public void setId(UUID id) {
@@ -127,16 +140,6 @@ public class SchichtPlan {
         this.mitarbeiterList = mitarbeiterList;
     }
 
-    /*
-    // NEU: Getter und Setter für die Liste aller Schichten
-    public List<Schicht> getAlleSchichten() {
-        return alleSchichten;
-    }
-
-    public void setAlleSchichten(List<Schicht> alleSchichten) {
-        this.alleSchichten = alleSchichten;
-    } */
-
     public List<Arbeitsmuster> getArbeitsmusterList() {
         return arbeitsmusterList;
     }
@@ -167,20 +170,5 @@ public class SchichtPlan {
 
     public void setPublicHolidays(Set<LocalDate> publicHolidays) {
         this.publicHolidays = publicHolidays;
-    }
-
-    @Override
-    public String toString() {
-        return "SchichtPlan{" +
-               "id=" + id +
-               ", von=" + von +
-               ", bis=" + bis +
-               ", ressort='" + ressort + '\'' +
-               ", mitarbeiterList=" + (mitarbeiterList != null ? mitarbeiterList.size() : 0) + " Mitarbeiter" +
-               //", alleSchichten=" + (alleSchichten != null ? alleSchichten.size() : 0) + " Schichten" + // NEU: Ausgabe
-               ", arbeitsmusterList=" + (arbeitsmusterList != null ? arbeitsmusterList.size() : 0) + " Arbeitsmuster" +
-               ", score=" + score +
-               ", publicHolidays=" + (publicHolidays != null ? publicHolidays.size() : 0) + " Feiertage" +
-               '}';
     }
 }

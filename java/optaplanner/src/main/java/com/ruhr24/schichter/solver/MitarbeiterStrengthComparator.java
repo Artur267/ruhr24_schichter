@@ -2,7 +2,7 @@ package com.ruhr24.schichter.solver;
 
 import com.ruhr24.schichter.domain.Mitarbeiter;
 import java.util.Comparator;
-import java.util.List;
+//import java.util.List;
 
 public class MitarbeiterStrengthComparator implements Comparator<Mitarbeiter> {
 

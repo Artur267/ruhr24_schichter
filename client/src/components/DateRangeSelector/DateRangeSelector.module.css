@@ -1,0 +1,47 @@
+.header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 10px;
+}
+
+.monthDisplay {
+    text-transform: capitalize; /* Macht z.B. "august" zu "August" */
+    font-size: 1.1rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.day {
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 100%; /* Runde Tage für schöneres Aussehen */
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.day:hover {
+    background-color: #f1f3f5;
+}
+
+.selected {
+    background-color: #dbe4ff;
+    border-radius: 0;
+}
+
+.start {
+    background-color: #4c6ef5 !important;
+    color: white;
+    border-top-left-radius: 50%;
+    border-bottom-left-radius: 50%;
+}
+
+.end {
+    background-color: #4c6ef5 !important;
+    color: white;
+    border-top-right-radius: 50%;
+    border-bottom-right-radius: 50%;
+}
